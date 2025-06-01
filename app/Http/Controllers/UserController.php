@@ -53,6 +53,7 @@ class UserController extends Controller
                 Pelanggan::create([
                     'user_id'      => $user->id,
                     'pengelola_id' => $request->pengelola_id,
+                    'paket_id' => $request->paket_id,
                     'no_meter'     => $request->no_meter,
                     'alamat_meter' => $request->alamat_meter,
                     'status'       => 'enable'
