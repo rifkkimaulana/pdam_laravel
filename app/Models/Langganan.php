@@ -8,6 +8,9 @@ class Langganan extends Model
 {
     protected $table = 'tb_langganan';
 
+    protected $primaryKey = 'id';
+
+
     protected $fillable = [
         'user_id',          // Administrator
         'pengelola_id',     // Pengelola yang berlangganan

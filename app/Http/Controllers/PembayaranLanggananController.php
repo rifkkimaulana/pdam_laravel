@@ -26,30 +26,33 @@ class PembayaranLanggananController extends Controller
     // Tambah pembayaran baru
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'langganan_id' => 'required|exists:tb_langganan,id',
             'tanggal_bayar' => 'required|date',
+            'jumlah_bayar' => 'required|numeric',
             'metode' => 'required|in:Cash,Transfer',
             'status' => 'required|in:Menunggu,Diterima,Ditolak',
-            'bukti_bayar' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'bukti_bayar' => 'nullable|file|mimes:jpg,jpeg,png,pdf',
         ]);
 
-        // Ambil jumlah bayar otomatis berdasarkan paket berlangganan
-        $langganan = Langganan::findOrFail($request->langganan_id);
-        $jumlah_bayar = $langganan->paket->harga;  // asumsikan relasi paket ada dan punya kolom harga
+        $pembayaran = new PembayaranLangganan();
+        $pembayaran->langganan_id = $validated['langganan_id'];
+        $pembayaran->tanggal_bayar = $validated['tanggal_bayar'];
+        $pembayaran->jumlah_bayar = $validated['jumlah_bayar'];
+        $pembayaran->metode = $validated['metode'];
+        $pembayaran->status = $validated['status'];
 
-        $data = $request->only(['langganan_id', 'tanggal_bayar', 'metode', 'status']);
-        $data['jumlah_bayar'] = $jumlah_bayar;
-
-        // Upload bukti bayar jika ada
         if ($request->hasFile('bukti_bayar')) {
-            $data['bukti_bayar'] = $request->file('bukti_bayar')->store('bukti_bayar');
+            $file = $request->file('bukti_bayar');
+            $path = $file->store('bukti_bayar', 'public');
+            $pembayaran->bukti_bayar = $path;
         }
 
-        $pembayaran = PembayaranLangganan::create($data);
+        $pembayaran->save();
 
-        return response()->json($pembayaran, 201);
+        return response()->json(['message' => 'Data pembayaran berhasil disimpan', 'data' => $pembayaran], 201);
     }
+
 
     // Update pembayaran
     public function update(Request $request, $id)
