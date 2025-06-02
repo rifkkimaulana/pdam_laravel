@@ -12,6 +12,7 @@ use App\Http\Controllers\PembayaranController;
 use App\Http\Controllers\PelangganController;
 use App\Http\Controllers\PaketLanggananController;
 use App\Http\Controllers\PembayaranLanggananController;
+use App\Http\Controllers\AuthController;
 
 
 use App\Http\Controllers\GangguanController;
@@ -65,3 +66,4 @@ Route::apiResource('pengaturan', PengaturanController::class);
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+Route::post('/login', [AuthController::class, 'login']);
