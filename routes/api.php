@@ -18,7 +18,6 @@ use App\Http\Controllers\GangguanController;
 use App\Http\Controllers\PenugasanController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PengaturanController;
-use App\Http\Controllers\RoleController;
 
 
 // Route Api resource
@@ -30,13 +29,14 @@ Route::apiResource('penggunaan', PenggunaanController::class);
 Route::apiResource('tagihan', TagihanController::class);
 Route::apiResource('pembayaran', PembayaranController::class);
 
-Route::apiResource('pelanggan', PelangganController::class);
-Route::apiResource('paket-langganan', PaketLanggananController::class);
+// gangguan dan penugasan
 Route::apiResource('gangguan', GangguanController::class);
 Route::apiResource('penugasan', PenugasanController::class);
+
+Route::apiResource('pelanggan', PelangganController::class);
+Route::apiResource('paket-langganan', PaketLanggananController::class);
 Route::apiResource('dashboard', DashboardController::class);
 Route::apiResource('pengaturan', PengaturanController::class);
-Route::apiResource('roles', RoleController::class);
 
 
 /*

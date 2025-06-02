@@ -2,87 +2,70 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Penugasan;
+use App\Models\Gangguan;
 use Illuminate\Http\Request;
-use App\Models\PenugasanGangguan;
 
 class PenugasanController extends Controller
 {
-    /**
-     * Menampilkan daftar semua penugasan dengan urutan berdasarkan tanggal tugas terbaru.
-     */
     public function index()
     {
-        $penugasans = PenugasanGangguan::orderBy('tanggal_tugas', 'desc')->get();
-        return response()->json($penugasans);
+        return Penugasan::all();
     }
 
-    /**
-     * Menampilkan detail penugasan berdasarkan ID.
-     */
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'gangguan_id' => 'required|exists:tb_gangguan,id',
+            'staf_id' => 'required|exists:tb_staf,id',
+            'status_kerja' => 'required|in:Ditugaskan,Sedang Dikerjakan,Selesai,Batal',
+            'catatan' => 'nullable|string',
+        ]);
+
+        $penugasan = Penugasan::create($data);
+
+        return response()->json($penugasan, 201);
+    }
+
     public function show($id)
     {
-        $penugasan = PenugasanGangguan::findOrFail($id);
+        $penugasan = Penugasan::findOrFail($id);
         return response()->json($penugasan);
     }
 
-    /**
-     * Menambahkan penugasan baru.
-     * Validasi yang dilakukan:
-     * - gangguan_id harus ada dan merupakan ID yang valid di tabel gangguan.
-     * - staf_id harus ada dan merupakan ID yang valid di tabel staf.
-     * - tanggal_tugas opsional, jika diberikan harus berupa format tanggal.
-     * - status_kerja dapat bernilai: ditugaskan, sedang_kerja, selesai, atau batal.
-     * - catatan opsional.
-     */
-    public function store(Request $request)
-    {
-        $request->validate([
-            'gangguan_id'    => 'required|exists:tb_gangguan,id',
-            'staf_id'        => 'required|exists:tb_staf,id',
-            'tanggal_tugas'  => 'nullable|date',
-            'status_kerja'   => 'nullable|in:ditugaskan,sedang_kerja,selesai,batal',
-            'catatan'        => 'nullable|string'
-        ]);
-
-        $penugasan = PenugasanGangguan::create($request->all());
-
-        return response()->json([
-            'message'   => 'Penugasan berhasil dibuat!',
-            'penugasan' => $penugasan
-        ], 201);
-    }
-
-    /**
-     * Mengupdate data penugasan.
-     * Perbarui kolom yang diizinkan, misalnya:
-     * - tanggal_tugas (jika ingin mengubah jadwal tugas)
-     * - status_kerja (ubah status pengerjaan)
-     * - catatan (update keterangan)
-     */
     public function update(Request $request, $id)
     {
-        $penugasan = PenugasanGangguan::findOrFail($id);
+        $penugasan = Penugasan::findOrFail($id);
 
-        $request->validate([
-            'tanggal_tugas'  => 'sometimes|required|date',
-            'status_kerja'   => 'sometimes|required|in:ditugaskan,sedang_kerja,selesai,batal',
-            'catatan'        => 'nullable|string'
+        $data = $request->validate([
+            'status_kerja' => 'required|in:Ditugaskan,Sedang Dikerjakan,Selesai,Batal',
+            'catatan' => 'nullable|string',
         ]);
 
-        $penugasan->update($request->all());
+        $penugasan->update($data);
+        $gangguan = Gangguan::find($penugasan->gangguan_id);
 
-        return response()->json([
-            'message'   => 'Penugasan berhasil diperbarui!',
-            'penugasan' => $penugasan
-        ]);
+        if ($gangguan) {
+            if ($data['status_kerja'] === 'Ditugaskan') {
+                $gangguan->status = 'Baru';
+            } else if ($data['status_kerja'] === 'Sedang Dikerjakan') {
+                $gangguan->status = 'Diproses';
+            } else if ($data['status_kerja'] === 'Selesai') {
+                $gangguan->status = 'Selesai';
+            } else if ($data['status_kerja'] === 'Batal') {
+                $gangguan->status = 'Batal';
+            }
+
+            $gangguan->save();
+        }
+        return response()->json($penugasan);
     }
 
-    /**
-     * Menghapus data penugasan berdasarkan ID.
-     */
     public function destroy($id)
     {
-        PenugasanGangguan::destroy($id);
-        return response()->json(['message' => 'Penugasan berhasil dihapus!']);
+        $penugasan = Penugasan::findOrFail($id);
+        $penugasan->delete();
+
+        return response()->json(['message' => 'Penugasan dihapus']);
     }
 }
