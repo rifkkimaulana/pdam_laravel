@@ -2,65 +2,75 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\PaketLangganan;
+use Illuminate\Http\Request;
 
 class PaketLanggananController extends Controller
 {
-    // GET semua paket langganan
+    // Daftar paket langganan
     public function index()
     {
-        return response()->json(PaketLangganan::orderBy('nama_paket', 'asc')->get());
+        $paket = PaketLangganan::all();
+        return response()->json($paket);
     }
 
-    // GET paket langganan berdasarkan ID
-    public function show($id)
-    {
-        return response()->json(PaketLangganan::findOrFail($id));
-    }
-
-    // POST tambah paket langganan baru
+    // Tambah paket langganan
     public function store(Request $request)
     {
-        $request->validate([
-            'nama_paket' => 'required|max:50',
-            'harga_paket' => 'required|numeric|min:0',
-            'masa_aktif' => 'required|integer|min:1',
-            'satuan' => 'required|in:hari,bulan',
-            'deskripsi' => 'nullable'
+        $validated = $request->validate([
+            'nama_paket'   => 'required|string|max:255',
+            'harga_paket'  => 'required|numeric',
+            'masa_aktif'   => 'required|integer',
+            'satuan'       => 'required|in:hari,bulan',
+            'deskripsi'    => 'nullable|string',
+            'status'       => 'boolean',
         ]);
 
-        $paket = PaketLangganan::create($request->all());
-        return response()->json([
-            'message' => 'Paket langganan berhasil ditambahkan!',
-            'paket' => $paket
-        ], 201);
+        $paket = PaketLangganan::create($validated);
+        return response()->json(['message' => 'Paket berhasil ditambahkan', 'data' => $paket], 201);
     }
 
-    // PUT update paket langganan
+    // Ubah paket langganan
     public function update(Request $request, $id)
     {
         $paket = PaketLangganan::findOrFail($id);
 
-        $request->validate([
-            'nama_paket' => 'sometimes|required|max:50',
-            'harga_paket' => 'sometimes|required|numeric|min:0',
-            'masa_aktif' => 'sometimes|required|integer|min:1',
-            'satuan' => 'sometimes|required|in:hari,bulan',
-            'deskripsi' => 'nullable'
+        $validated = $request->validate([
+            'nama_paket'   => 'required|string|max:255',
+            'harga_paket'  => 'required|numeric',
+            'masa_aktif'   => 'required|integer',
+            'satuan'       => 'required|in:hari,bulan',
+            'deskripsi'    => 'nullable|string',
+            'status'       => 'boolean',
         ]);
 
-        $paket->update($request->all());
+        $paket->update($validated);
+        return response()->json(['message' => 'Paket berhasil diperbarui', 'data' => $paket]);
+    }
+
+    // Detail paket langganan
+    public function show($id)
+    {
+        $paket = PaketLangganan::find($id);
+
+        if (!$paket) {
+            return response()->json([
+                'message' => 'Paket tidak ditemukan'
+            ], 404);
+        }
+
         return response()->json([
-            'message' => 'Paket langganan berhasil diperbarui!',
-            'paket' => $paket
+            'data' => $paket
         ]);
     }
 
-    // DELETE paket langganan
+
+    // Hapus paket langganan
     public function destroy($id)
     {
-        PaketLangganan::destroy($id);
-        return response()->json(['message' => 'Paket langganan berhasil dihapus']);
+        $paket = PaketLangganan::findOrFail($id);
+        $paket->delete();
+
+        return response()->json(['message' => 'Paket berhasil dihapus']);
     }
 }

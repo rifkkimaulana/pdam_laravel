@@ -7,16 +7,16 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PaketPenggunaController;
 use App\Http\Controllers\PenggunaanController;
-
 use App\Http\Controllers\TagihanController;
 use App\Http\Controllers\PembayaranController;
-
 use App\Http\Controllers\PelangganController;
 use App\Http\Controllers\PaketLanggananController;
+use App\Http\Controllers\PembayaranLanggananController;
 
 use App\Http\Controllers\GangguanController;
 use App\Http\Controllers\PenugasanController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\LanggananController;
 use App\Http\Controllers\PengaturanController;
 
 
@@ -33,8 +33,13 @@ Route::apiResource('pembayaran', PembayaranController::class);
 Route::apiResource('gangguan', GangguanController::class);
 Route::apiResource('penugasan', PenugasanController::class);
 
-Route::apiResource('pelanggan', PelangganController::class);
+// Routes SaaS Pelanggan 
 Route::apiResource('paket-langganan', PaketLanggananController::class);
+Route::apiResource('langganan', LanggananController::class);
+Route::apiResource('pembayaran-langganan', PembayaranLanggananController::class);
+
+Route::apiResource('pelanggan', PelangganController::class);
+
 Route::apiResource('dashboard', DashboardController::class);
 Route::apiResource('pengaturan', PengaturanController::class);
 
