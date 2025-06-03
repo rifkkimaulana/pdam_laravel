@@ -8,6 +8,7 @@ use App\Models\Pelanggan;
 use App\Models\Staf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\File;
 
 class UserController extends Controller
 {
@@ -26,11 +27,35 @@ class UserController extends Controller
             'telpon'           => 'required|string|max:15',
             'jenis_identitas'  => 'required|in:KTP,SIM,PASPOR,ID Lainnya',
             'nomor_identitas'  => 'required|string|max:20',
-            'file_identitas'   => 'required|string',
+            'file_identitas'   => 'nullable',
             'alamat'           => 'required|string',
-            'pictures'         => 'required|string',
+            'pictures'         => 'nullable',
             'jabatan'          => 'required|in:Administrator,Pengelola,Pelanggan,Staf'
         ]);
+
+        // file_identitas
+        if ($request->hasFile('file_identitas')) {
+            $file = $request->file('file_identitas');
+            $fileName = time() . '_identitas.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/identitas'), $fileName);
+            $validated['file_identitas'] = 'uploads/identitas/' . $fileName;
+        } elseif ($request->filled('file_identitas')) {
+            $validated['file_identitas'] = $request->input('file_identitas');
+        } else {
+            $validated['file_identitas'] = null;
+        }
+
+        // pictures
+        if ($request->hasFile('pictures')) {
+            $file = $request->file('pictures');
+            $fileName = time() . '_foto.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/pictures'), $fileName);
+            $validated['pictures'] = 'uploads/pictures/' . $fileName;
+        } elseif ($request->filled('pictures')) {
+            $validated['pictures'] = $request->input('pictures');
+        } else {
+            $validated['pictures'] = null;
+        }
 
         $validated['password'] = Hash::make($validated['password']);
         $user = User::create($validated);
@@ -80,34 +105,77 @@ class UserController extends Controller
 
     public function update(Request $request, $id)
     {
-
         $user = User::find($id);
         if (!$user) return response()->json(['message' => 'User tidak ditemukan'], 404);
 
-        $user = User::findOrFail($id);
-
         $validated = $request->validate([
-            'nama_lengkap'     => 'sometimes|required|string|max:50',
-            'username'         => 'sometimes|required|string|max:50|unique:tb_user,username,' . $id,
-            'email'            => 'sometimes|required|email|max:50|unique:tb_user,email,' . $id,
+            'nama_lengkap'     => 'sometimes|string|max:50',
+            'username'         => 'sometimes|string|max:50|unique:tb_user,username,' . $id,
+            'email'            => 'sometimes|email|max:50|unique:tb_user,email,' . $id,
             'password'         => 'sometimes|nullable|string|min:6',
-            'telpon'           => 'sometimes|required|string|max:15',
-            'jenis_identitas'  => 'sometimes|required|in:KTP,SIM,PASPOR,ID Lainnya',
-            'nomor_identitas'  => 'sometimes|required|string|max:20',
-            'file_identitas'   => 'sometimes|required|string',
-            'alamat'           => 'sometimes|required|string',
-            'pictures'         => 'sometimes|required|string',
+            'telpon'           => 'sometimes|string|max:15',
+            'jenis_identitas'  => 'sometimes|in:KTP,SIM,PASPOR,ID Lainnya',
+            'nomor_identitas'  => 'sometimes|string|max:20',
+            'file_identitas'   => 'nullable',
+            'alamat'           => 'sometimes|string',
+            'pictures'         => 'nullable',
         ]);
 
-        if (!empty($validated['password'])) {
-            $validated['password'] = Hash::make($validated['password']);
-        } else {
-            unset($validated['password']);
+        // Hanya update field yang dikirim dan tidak kosong
+        $updateData = [];
+        foreach ($validated as $key => $val) {
+            if ($val !== null && $val !== "") {
+                $updateData[$key] = $val;
+            }
         }
 
-        $user->update($validated);
+        // Password
+        if (isset($updateData['password'])) {
+            $updateData['password'] = Hash::make($updateData['password']);
+        }
 
-        return response()->json(['message' => 'User berhasil diperbarui', 'user' => $user]);
+        // file_identitas
+        if ($request->hasFile('file_identitas')) {
+            // Hapus file lama jika ada
+            if ($user->file_identitas && File::exists(public_path($user->file_identitas))) {
+                File::delete(public_path($user->file_identitas));
+            }
+            $file = $request->file('file_identitas');
+            $fileName = time() . '_identitas.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/identitas'), $fileName);
+            $updateData['file_identitas'] = 'uploads/identitas/' . $fileName;
+        } elseif ($request->filled('file_identitas')) {
+            $updateData['file_identitas'] = $request->input('file_identitas');
+        } elseif ($request->exists('file_identitas')) {
+            // Jika dikirim kosong/null dari frontend, hapus file lama
+            if ($user->file_identitas && File::exists(public_path($user->file_identitas))) {
+                File::delete(public_path($user->file_identitas));
+            }
+            $updateData['file_identitas'] = null;
+        }
+
+        // pictures (foto profil)
+        if ($request->hasFile('pictures')) {
+            // Hapus file lama jika ada
+            if ($user->pictures && File::exists(public_path($user->pictures))) {
+                File::delete(public_path($user->pictures));
+            }
+            $file = $request->file('pictures');
+            $fileName = time() . '_foto.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/pictures'), $fileName);
+            $updateData['pictures'] = 'uploads/pictures/' . $fileName;
+        } elseif ($request->filled('pictures')) {
+            $updateData['pictures'] = $request->input('pictures');
+        } elseif ($request->exists('pictures')) {
+            if ($user->pictures && File::exists(public_path($user->pictures))) {
+                File::delete(public_path($user->pictures));
+            }
+            $updateData['pictures'] = null;
+        }
+
+        $user->update($updateData);
+
+        return response()->json(['message' => 'User berhasil diperbarui', 'user' => $user->fresh()]);
     }
 
     public function destroy($id)
