@@ -20,6 +20,7 @@ use App\Http\Controllers\PengaturanController;
 use App\Http\Controllers\PengelolaController;
 use App\Http\Controllers\PaketController;
 use App\Http\Controllers\BlokTarifController;
+use App\Http\Controllers\StafController;
 
 
 /*
@@ -59,4 +60,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/paket', [PaketController::class, 'index']);
     Route::get('/paket/{paket}/blok-tarif', [PaketController::class, 'blokTarif']);
     Route::apiResource('blok-tarif', BlokTarifController::class);
+    Route::apiResource('staf', StafController::class);
 });

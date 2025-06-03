@@ -10,4 +10,14 @@ class Staf extends Model
     public $timestamps = false;
 
     protected $fillable = ['user_id', 'pengelola_id', 'jabatan'];
+
+    public function pengelola()
+    {
+        return $this->belongsTo(Pengelola::class, 'pengelola_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 }
