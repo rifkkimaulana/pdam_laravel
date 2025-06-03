@@ -12,4 +12,9 @@ class Pengelola extends Model
     public $timestamps = true;
 
     protected $fillable = ['user_id', 'nama_pengelola', 'email', 'telpon', 'alamat', 'logo', 'deskripsi'];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 }
