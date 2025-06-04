@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Pengelola;
 use App\Models\Pelanggan;
 use App\Models\Staf;
+use App\Models\PaketPengguna;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\File;
@@ -14,8 +15,71 @@ class UserController extends Controller
 {
     public function index()
     {
-        return response()->json(User::with(['pengelola', 'pelanggan', 'staf'])->latest()->get());
+        // Ambil semua user dengan relasi yang diperlukan
+        $users = User::latest()->get();
+        $result = [];
+
+        foreach ($users as $user) {
+            $row = [];
+
+            // Menangani setiap kasus jabatan
+            switch ($user->jabatan) {
+                case 'Administrator':
+                    // Untuk Administrator, tampilkan semua user
+                    $row = User::latest()->get();
+                    break;
+
+                case 'Pengelola':
+                    // Jika Pengelola, tampilkan hanya data pengelola
+                    $userPengelola = $user->pengelola;
+                    $row['user_pengelola'] = $userPengelola ? $userPengelola->toArray() : [];
+                    break;
+
+                case 'Pelanggan':
+                    // Jika Pelanggan, tampilkan relasi pelanggan dan informasi lainnya
+                    $row['pelanggan'] = $user->pelanggan ? $user->pelanggan->toArray() : [];
+
+                    // Tampilkan data user_pengelola (berdasarkan pengelola_id)
+                    $pengelolaPelanggan = Pengelola::find($user->pelanggan->pengelola_id);
+                    $row['pengelola_pelanggan'] = $pengelolaPelanggan ? $pengelolaPelanggan->toArray() : [];
+
+                    // user_pengelola_pelanggan: berdasarkan user_id di pengelola
+                    $userPengelolaPelanggan = $pengelolaPelanggan ? User::find($pengelolaPelanggan->user_id) : null;
+                    $row['user_pengelola_pelanggan'] = $userPengelolaPelanggan ? $userPengelolaPelanggan->toArray() : [];
+
+                    // Paket pelanggan
+                    $paket = PaketPengguna::find($user->pelanggan->paket_id);
+                    $row['paket'] = $paket ? $paket->toArray() : [];
+                    break;
+
+                case 'Staf':
+                    // Jika Staf, tampilkan relasi staf dan informasi lainnya
+                    $row['staf'] = $user->staf ? $user->staf->toArray() : [];
+
+                    // stafs yang terkait dengan user
+                    $stafUser = $user->staf ? User::find($user->staf->user_id) : null;
+                    $row['staf_user'] = $stafUser ? $stafUser->toArray() : [];
+
+                    // stafs pengelola yang terkait
+                    $stafPengelola = $user->staf && $user->staf->pengelola_id ? Pengelola::find($user->staf->pengelola_id) : null;
+                    $row['staf_pengelola'] = $stafPengelola ? $stafPengelola->toArray() : [];
+
+                    // user_pengelola terkait staf pengelola
+                    $userPengelola = $stafPengelola ? User::find($stafPengelola->user_id) : null;
+                    $row['user_pengelola'] = $userPengelola ? $userPengelola->toArray() : [];
+                    break;
+            }
+
+            // Pastikan hanya menambahkan data jika ada informasi yang relevan
+            if ($row) {
+                $result[] = $row;
+            }
+        }
+
+        // Mengembalikan data dalam format JSON
+        return response()->json($result);
     }
+
 
     public function store(Request $request)
     {
