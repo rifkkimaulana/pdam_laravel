@@ -39,8 +39,10 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 Route::post('/login', [AuthController::class, 'login']);
 
+Route::apiResource('users', UserController::class);
+
 Route::middleware('auth:sanctum')->group(function () {
-    Route::apiResource('users', UserController::class);
+
     Route::apiResource('paket', PaketPenggunaController::class);
     Route::apiResource('penggunaan', PenggunaanController::class);
     Route::apiResource('tagihan', TagihanController::class);

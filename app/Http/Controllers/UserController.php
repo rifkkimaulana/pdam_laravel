@@ -13,73 +13,68 @@ use Illuminate\Support\Facades\File;
 
 class UserController extends Controller
 {
+    private function getUserData($user)
+    {
+        $row = [];
+        switch ($user->jabatan) {
+            case 'Administrator':
+                $row['user'] = $user->toArray();
+                $row['users'] = User::latest()->get()->toArray();
+                break;
+
+            case 'Pengelola':
+                $row['user'] = $user->toArray();
+                $userPengelola = $user->pengelola;
+                $row['user_pengelola'] = $userPengelola ? $userPengelola->toArray() : [];
+                break;
+
+            case 'Pelanggan':
+                $row['user'] = $user->toArray();
+                $row['pelanggan'] = $user->pelanggan ? $user->pelanggan->toArray() : [];
+                $pengelolaPelanggan = Pengelola::find($user->pelanggan->pengelola_id);
+                $row['pengelola_pelanggan'] = $pengelolaPelanggan ? $pengelolaPelanggan->toArray() : [];
+                $userPengelolaPelanggan = $pengelolaPelanggan ? User::find($pengelolaPelanggan->user_id) : null;
+                $row['user_pengelola_pelanggan'] = $userPengelolaPelanggan ? $userPengelolaPelanggan->toArray() : [];
+                $paket = PaketPengguna::find($user->pelanggan->paket_id);
+                $row['paket'] = $paket ? $paket->toArray() : [];
+                break;
+
+            case 'Staf':
+                $row['user'] = $user->toArray();
+                $row['staf'] = $user->staf ? $user->staf->toArray() : [];
+                $stafUser = $user->staf ? User::find($user->staf->user_id) : null;
+                $row['staf_user'] = $stafUser ? $stafUser->toArray() : [];
+                $stafPengelola = $user->staf && $user->staf->pengelola_id ? Pengelola::find($user->staf->pengelola_id) : null;
+                $row['staf_pengelola'] = $stafPengelola ? $stafPengelola->toArray() : [];
+                $userPengelola = $stafPengelola ? User::find($stafPengelola->user_id) : null;
+                $row['user_pengelola'] = $userPengelola ? $userPengelola->toArray() : [];
+                break;
+        }
+        return $row;
+    }
+
     public function index()
     {
-        // Ambil semua user dengan relasi yang diperlukan
         $users = User::latest()->get();
         $result = [];
 
         foreach ($users as $user) {
-            $row = [];
-
-            // Menangani setiap kasus jabatan
-            switch ($user->jabatan) {
-                case 'Administrator':
-                    // Untuk Administrator, tampilkan semua user
-                    $row = User::latest()->get();
-                    break;
-
-                case 'Pengelola':
-                    // Jika Pengelola, tampilkan hanya data pengelola
-                    $userPengelola = $user->pengelola;
-                    $row['user_pengelola'] = $userPengelola ? $userPengelola->toArray() : [];
-                    break;
-
-                case 'Pelanggan':
-                    // Jika Pelanggan, tampilkan relasi pelanggan dan informasi lainnya
-                    $row['pelanggan'] = $user->pelanggan ? $user->pelanggan->toArray() : [];
-
-                    // Tampilkan data user_pengelola (berdasarkan pengelola_id)
-                    $pengelolaPelanggan = Pengelola::find($user->pelanggan->pengelola_id);
-                    $row['pengelola_pelanggan'] = $pengelolaPelanggan ? $pengelolaPelanggan->toArray() : [];
-
-                    // user_pengelola_pelanggan: berdasarkan user_id di pengelola
-                    $userPengelolaPelanggan = $pengelolaPelanggan ? User::find($pengelolaPelanggan->user_id) : null;
-                    $row['user_pengelola_pelanggan'] = $userPengelolaPelanggan ? $userPengelolaPelanggan->toArray() : [];
-
-                    // Paket pelanggan
-                    $paket = PaketPengguna::find($user->pelanggan->paket_id);
-                    $row['paket'] = $paket ? $paket->toArray() : [];
-                    break;
-
-                case 'Staf':
-                    // Jika Staf, tampilkan relasi staf dan informasi lainnya
-                    $row['staf'] = $user->staf ? $user->staf->toArray() : [];
-
-                    // stafs yang terkait dengan user
-                    $stafUser = $user->staf ? User::find($user->staf->user_id) : null;
-                    $row['staf_user'] = $stafUser ? $stafUser->toArray() : [];
-
-                    // stafs pengelola yang terkait
-                    $stafPengelola = $user->staf && $user->staf->pengelola_id ? Pengelola::find($user->staf->pengelola_id) : null;
-                    $row['staf_pengelola'] = $stafPengelola ? $stafPengelola->toArray() : [];
-
-                    // user_pengelola terkait staf pengelola
-                    $userPengelola = $stafPengelola ? User::find($stafPengelola->user_id) : null;
-                    $row['user_pengelola'] = $userPengelola ? $userPengelola->toArray() : [];
-                    break;
-            }
-
-            // Pastikan hanya menambahkan data jika ada informasi yang relevan
+            $row = $this->getUserData($user);
             if ($row) {
                 $result[] = $row;
             }
         }
 
-        // Mengembalikan data dalam format JSON
         return response()->json($result);
     }
 
+    public function show($id)
+    {
+        $user = User::findOrFail($id);
+        $row = $this->getUserData($user);
+
+        return response()->json($row);
+    }
 
     public function store(Request $request)
     {
@@ -97,7 +92,6 @@ class UserController extends Controller
             'jabatan'          => 'required|in:Administrator,Pengelola,Pelanggan,Staf'
         ]);
 
-        // file_identitas
         if ($request->hasFile('file_identitas')) {
             $file = $request->file('file_identitas');
             $fileName = time() . '_identitas.' . $file->getClientOriginalExtension();
@@ -109,7 +103,6 @@ class UserController extends Controller
             $validated['file_identitas'] = null;
         }
 
-        // pictures
         if ($request->hasFile('pictures')) {
             $file = $request->file('pictures');
             $fileName = time() . '_foto.' . $file->getClientOriginalExtension();
@@ -124,7 +117,6 @@ class UserController extends Controller
         $validated['password'] = Hash::make($validated['password']);
         $user = User::create($validated);
 
-        // Simpan detail berdasarkan jabatan
         switch ($validated['jabatan']) {
             case 'Pengelola':
                 Pengelola::create([
@@ -161,12 +153,6 @@ class UserController extends Controller
         return response()->json(['message' => 'User berhasil ditambahkan', 'user' => $user], 201);
     }
 
-    public function show($id)
-    {
-        $user = User::with(['pengelola', 'pelanggan', 'staf'])->findOrFail($id);
-        return response()->json($user);
-    }
-
     public function update(Request $request, $id)
     {
         $user = User::find($id);
@@ -185,7 +171,6 @@ class UserController extends Controller
             'pictures'         => 'nullable',
         ]);
 
-        // Hanya update field yang dikirim dan tidak kosong
         $updateData = [];
         foreach ($validated as $key => $val) {
             if ($val !== null && $val !== "") {
@@ -193,14 +178,11 @@ class UserController extends Controller
             }
         }
 
-        // Password
         if (isset($updateData['password'])) {
             $updateData['password'] = Hash::make($updateData['password']);
         }
 
-        // file_identitas
         if ($request->hasFile('file_identitas')) {
-            // Hapus file lama jika ada
             if ($user->file_identitas && File::exists(public_path($user->file_identitas))) {
                 File::delete(public_path($user->file_identitas));
             }
@@ -211,16 +193,13 @@ class UserController extends Controller
         } elseif ($request->filled('file_identitas')) {
             $updateData['file_identitas'] = $request->input('file_identitas');
         } elseif ($request->exists('file_identitas')) {
-            // Jika dikirim kosong/null dari frontend, hapus file lama
             if ($user->file_identitas && File::exists(public_path($user->file_identitas))) {
                 File::delete(public_path($user->file_identitas));
             }
             $updateData['file_identitas'] = null;
         }
 
-        // pictures (foto profil)
         if ($request->hasFile('pictures')) {
-            // Hapus file lama jika ada
             if ($user->pictures && File::exists(public_path($user->pictures))) {
                 File::delete(public_path($user->pictures));
             }
