@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Langganan;
+use App\Models\PaketLangganan;
 use App\Models\User;
 use App\Models\Pengelola;
 use App\Models\Pelanggan;
@@ -10,6 +12,7 @@ use App\Models\PaketPengguna;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Lang;
 
 class UserController extends Controller
 {
@@ -24,9 +27,20 @@ class UserController extends Controller
 
             case 'Pengelola':
                 $row['user'] = $user->toArray();
+
                 $userPengelola = $user->pengelola;
-                $row['user_pengelola'] = $userPengelola ? $userPengelola->toArray() : [];
+
+                $row['pengelola'] = $userPengelola ? $userPengelola->toArray() : [];
+
+                $row['paket'] = $userPengelola && $userPengelola->paket_id ?
+                    PaketLangganan::find($userPengelola->paket_id)->toArray() : [];
+
+                $langganan = $userPengelola ?
+                    Langganan::where('pengelola_id', $userPengelola->id)->first() : null;
+
+                $row['langganan'] = $langganan ? $langganan->toArray() : null;
                 break;
+
 
             case 'Pelanggan':
                 $row['user'] = $user->toArray();
