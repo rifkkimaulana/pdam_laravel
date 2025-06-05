@@ -12,8 +12,6 @@ use App\Models\PaketPengguna;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Lang;
-use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
@@ -93,6 +91,7 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
+        // Validasi input data
         $validated = $request->validate([
             'paket_id'         => 'sometimes|exists:tb_paket_langganan,id',
             'nama_lengkap'     => 'required|string|max:50',
@@ -109,103 +108,111 @@ class UserController extends Controller
             'jabatan'          => 'required|in:Administrator,Pengelola,Pelanggan,Staf'
         ]);
 
-
-
+        // Handle file upload for file_identitas
         if ($request->hasFile('file_identitas')) {
             $file = $request->file('file_identitas');
-            $fileName = time() . '_identitas.' . $file->getClientOriginalExtension();
-
-            // Simpan file ke disk 'public'
-            $file->storeAs('public/uploads/identitas', $fileName);
-
-            // Simpan path relatif yang bisa diakses ke database
+            $fileName = time() . '_' . uniqid() . '_identitas.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/identitas'), $fileName);
             $validated['file_identitas'] = 'storage/uploads/identitas/' . $fileName;
-        } elseif ($request->filled('file_identitas')) {
-            // Jika file identitas sudah ada di input, ambil dari input
+        } else if ($request->filled('file_identitas')) {
             $validated['file_identitas'] = $request->input('file_identitas');
         } else {
-            // Jika tidak ada file identitas dan input kosong, set null
-            $validated['file_identitas'] = null;
+            $validated['file_identitas'] = '';
         }
 
+        // Handle file upload for pictures
         if ($request->hasFile('pictures')) {
             $file = $request->file('pictures');
-            $fileName = time() . '_foto.' . $file->getClientOriginalExtension();
-
-            // Simpan file ke disk 'public'
-            $file->storeAs('public/uploads/pictures', $fileName);
-
-            // Simpan path relatif yang bisa diakses ke database
+            $fileName = time() . '_' . uniqid() . '_foto.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/pictures'), $fileName);
             $validated['pictures'] = 'storage/uploads/pictures/' . $fileName;
-        } elseif ($request->filled('pictures')) {
-            // Jika gambar sudah ada di input, ambil dari input
+        } else if ($request->filled('pictures')) {
             $validated['pictures'] = $request->input('pictures');
         } else {
-            // Jika tidak ada gambar dan input kosong, set null
-            $validated['pictures'] = null;
+            $validated['pictures'] = '';
         }
 
-
+        // Handle password hash
         $validated['password'] = Hash::make($validated['password']);
+
+        // Create new user
         $user = User::create($validated);
 
+        // Prepare response array to include all the added data
+        $responseData = [
+            'user' => $user,
+            'pengelola' => null,
+            'langganan' => null
+        ];
+
+        // Check if the user is a "Pengelola" and create the Pengelola
+        if ($validated['jabatan'] === 'Pengelola') {
+            // Create pengelola
+            $pengelola = Pengelola::create([
+                'user_id'        => $user->id,
+                'paket_id'       => $request->paket_id,
+                'nama_pengelola' => $request->nama_pengelola,
+                'email'          => $request->email_pengelola,
+                'telpon'         => $request->telpon_pengelola,
+                'alamat'         => $request->alamat_pengelola,
+                'logo'           => $request->logo_pengelola,
+                'deskripsi'      => $request->deskripsi_pengelola
+            ]);
+
+            // Handle logo file upload for pengelola
+            if ($request->hasFile('logo_pengelola')) {
+                $file = $request->file('logo_pengelola');
+                $fileName = time() . '_logo.' . $file->getClientOriginalExtension();
+                $file->move(public_path('uploads/logo'), $fileName);
+                // Update logo path for pengelola
+                $pengelola->update(['logo' => 'storage/uploads/logo/' . $fileName]);
+            }
+
+            // Create langganan entry for the pengelola (initial status "Tidak Aktif")
+            $langganan = Langganan::create([
+                'pengelola_id' => $pengelola->id,
+                'status'       => 'Tidak Aktif',
+                'paket_id'     => $request->paket_id,
+                'user_id'      => 1, // Assuming user_id 1 is the admin or system user
+                'mulai_langganan' => null,
+                'akhir_langganan' => null
+            ]);
+
+            // Add the pengelola and langganan to the response
+            $responseData['pengelola'] = $pengelola;
+            $responseData['langganan'] = $langganan;
+        }
+
+        // Handle other jabatan (Pelanggan or Staf)
         switch ($validated['jabatan']) {
-            case 'Pengelola':
-                Pengelola::create([
-                    'user_id'        => $user->id,
-                    'paket_id'       => $request->paket_id,
-                    'nama_pengelola' => $request->nama_pengelola,
-                    'email'          => $request->email_pengelola,
-                    'telpon'         => $request->telpon_pengelola,
-                    'alamat'         => $request->alamat_pengelola,
-                    'logo'           => $request->logo,
-                    'deskripsi'      => $request->deskripsi
-                ]);
-
-                if ($request->hasFile('logo')) {
-                    $file = $request->file('logo');
-                    $fileName = time() . '_logo.' . $file->getClientOriginalExtension();
-
-                    // Simpan file ke disk 'public' menggunakan Storage
-                    $file->storeAs('public/uploads/logo', $fileName);
-
-                    // Update path file di database
-                    Pengelola::where('user_id', $user->id)->update(['logo' => 'storage/uploads/logo/' . $fileName]);
-                }
-
-                Langganan::create([
-                    'pengelola_id' => $user->pengelola->id,
-                    'status'       => 'Tidak Aktif',
-                    'paket_id'     => $request->paket_id,
-                    'user_id'     => 1, // Assuming user_id 1 is the admin or system user
-                    'tanggal_mulai' => null,
-                    'tanggal_berakhir' => null
-                ]);
-
-                break;
-
             case 'Pelanggan':
-                Pelanggan::create([
+                $pelanggan = Pelanggan::create([
                     'user_id'      => $user->id,
                     'pengelola_id' => $request->pengelola_id,
-                    'paket_id' => $request->paket_id,
+                    'paket_id'     => $request->paket_id,
                     'no_meter'     => $request->no_meter,
                     'alamat_meter' => $request->alamat_meter,
                     'status'       => 'enable'
                 ]);
+                $responseData['pelanggan'] = $pelanggan;
                 break;
 
             case 'Staf':
-                Staf::create([
+                $staf = Staf::create([
                     'user_id'      => $user->id,
                     'pengelola_id' => $request->pengelola_id,
                     'jabatan'      => $request->jabatan_staf
                 ]);
+                $responseData['staf'] = $staf;
                 break;
         }
 
-        return response()->json(['message' => 'User berhasil ditambahkan', 'user' => $user], 201);
+        return response()->json([
+            'message' => 'User berhasil ditambahkan',
+            'data' => $responseData
+        ], 201);
     }
+
 
     public function update(Request $request, $id)
     {
