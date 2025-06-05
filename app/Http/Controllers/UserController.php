@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Lang;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
@@ -93,6 +94,7 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'paket_id'         => 'sometimes|exists:tb_paket_langganan,id',
             'nama_lengkap'     => 'required|string|max:50',
             'username'         => 'required|string|max:50|unique:tb_user,username',
             'password'         => 'required|string|min:6',
@@ -103,30 +105,46 @@ class UserController extends Controller
             'file_identitas'   => 'nullable',
             'alamat'           => 'required|string',
             'pictures'         => 'nullable',
+            'logo'             => 'nullable',
             'jabatan'          => 'required|in:Administrator,Pengelola,Pelanggan,Staf'
         ]);
+
+
 
         if ($request->hasFile('file_identitas')) {
             $file = $request->file('file_identitas');
             $fileName = time() . '_identitas.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/identitas'), $fileName);
-            $validated['file_identitas'] = 'uploads/identitas/' . $fileName;
+
+            // Simpan file ke disk 'public'
+            $file->storeAs('public/uploads/identitas', $fileName);
+
+            // Simpan path relatif yang bisa diakses ke database
+            $validated['file_identitas'] = 'storage/uploads/identitas/' . $fileName;
         } elseif ($request->filled('file_identitas')) {
+            // Jika file identitas sudah ada di input, ambil dari input
             $validated['file_identitas'] = $request->input('file_identitas');
         } else {
+            // Jika tidak ada file identitas dan input kosong, set null
             $validated['file_identitas'] = null;
         }
 
         if ($request->hasFile('pictures')) {
             $file = $request->file('pictures');
             $fileName = time() . '_foto.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/pictures'), $fileName);
-            $validated['pictures'] = 'uploads/pictures/' . $fileName;
+
+            // Simpan file ke disk 'public'
+            $file->storeAs('public/uploads/pictures', $fileName);
+
+            // Simpan path relatif yang bisa diakses ke database
+            $validated['pictures'] = 'storage/uploads/pictures/' . $fileName;
         } elseif ($request->filled('pictures')) {
+            // Jika gambar sudah ada di input, ambil dari input
             $validated['pictures'] = $request->input('pictures');
         } else {
+            // Jika tidak ada gambar dan input kosong, set null
             $validated['pictures'] = null;
         }
+
 
         $validated['password'] = Hash::make($validated['password']);
         $user = User::create($validated);
@@ -135,6 +153,7 @@ class UserController extends Controller
             case 'Pengelola':
                 Pengelola::create([
                     'user_id'        => $user->id,
+                    'paket_id'       => $request->paket_id,
                     'nama_pengelola' => $request->nama_pengelola,
                     'email'          => $request->email_pengelola,
                     'telpon'         => $request->telpon_pengelola,
@@ -142,6 +161,27 @@ class UserController extends Controller
                     'logo'           => $request->logo,
                     'deskripsi'      => $request->deskripsi
                 ]);
+
+                if ($request->hasFile('logo')) {
+                    $file = $request->file('logo');
+                    $fileName = time() . '_logo.' . $file->getClientOriginalExtension();
+
+                    // Simpan file ke disk 'public' menggunakan Storage
+                    $file->storeAs('public/uploads/logo', $fileName);
+
+                    // Update path file di database
+                    Pengelola::where('user_id', $user->id)->update(['logo' => 'storage/uploads/logo/' . $fileName]);
+                }
+
+                Langganan::create([
+                    'pengelola_id' => $user->pengelola->id,
+                    'status'       => 'Tidak Aktif',
+                    'paket_id'     => $request->paket_id,
+                    'user_id'     => 1, // Assuming user_id 1 is the admin or system user
+                    'tanggal_mulai' => null,
+                    'tanggal_berakhir' => null
+                ]);
+
                 break;
 
             case 'Pelanggan':
