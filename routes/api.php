@@ -39,32 +39,33 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 Route::post('/login', [AuthController::class, 'login']);
 
-Route::apiResource('users', UserController::class);
+
 
 Route::middleware('auth:sanctum')->group(function () {
 
-    Route::apiResource('paket', PaketPenggunaController::class);
-    Route::get('/paket', [PaketController::class, 'index']);
-    Route::get('/paket/{paket}/blok-tarif', [PaketController::class, 'blokTarif']);
-    Route::apiResource('blok-tarif', BlokTarifController::class);
+    Route::apiResource('users', UserController::class);
+    // Route::apiResource('paket', PaketPenggunaController::class);
+    // Route::get('/paket', [PaketController::class, 'index']);
+    // Route::get('/paket/{paket}/blok-tarif', [PaketController::class, 'blokTarif']);
+    // Route::apiResource('blok-tarif', BlokTarifController::class);
 
-    Route::apiResource('penggunaan', PenggunaanController::class);
-    Route::apiResource('tagihan', TagihanController::class);
-    Route::apiResource('pembayaran', PembayaranController::class);
-    Route::post('/tagihan/generate-massal', [TagihanController::class, 'generateTagihanMassal']);
-    Route::post('/tagihan/cetak-massal',    [TagihanController::class, 'cetakTagihanMassal']);
-    Route::post('/tagihan/cetak-ulang', [TagihanController::class, 'cetakUlangTagihan']);
-    Route::apiResource('gangguan', GangguanController::class);
-    Route::apiResource('penugasan', PenugasanController::class);
+    //Route::apiResource('penggunaan', PenggunaanController::class);
+    //Route::apiResource('tagihan', TagihanController::class);
+    //Route::apiResource('pembayaran', PembayaranController::class);
+    //Route::post('/tagihan/generate-massal', [TagihanController::class, 'generateTagihanMassal']);
+    //Route::post('/tagihan/cetak-massal',    [TagihanController::class, 'cetakTagihanMassal']);
+    //Route::post('/tagihan/cetak-ulang', [TagihanController::class, 'cetakUlangTagihan']);
+    //Route::apiResource('gangguan', GangguanController::class);
+    //Route::apiResource('penugasan', PenugasanController::class);
 
     Route::apiResource('pembayaran-langganan', PembayaranLanggananController::class);
 
-    Route::apiResource('pelanggan', PelangganController::class);
-    Route::apiResource('dashboard', DashboardController::class);
-    Route::apiResource('pengaturan', PengaturanController::class);
-    Route::apiResource('pengelola', PengelolaController::class);
-    Route::apiResource('staf', StafController::class);
+    // Route::apiResource('pelanggan', PelangganController::class);
+    // Route::apiResource('dashboard', DashboardController::class);
+    // Route::apiResource('pengaturan', PengaturanController::class);
+    // Route::apiResource('pengelola', PengelolaController::class);
+    //  Route::apiResource('staf', StafController::class);
 
-    Route::apiResource('langganan', LanggananController::class);
+    // Route::apiResource('langganan', LanggananController::class);
     Route::apiResource('paket-langganan', PaketLanggananController::class);
 });
