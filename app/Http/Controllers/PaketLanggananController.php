@@ -10,7 +10,7 @@ class PaketLanggananController extends Controller
     // Daftar paket langganan
     public function index()
     {
-        $paket = PaketLangganan::all();
+        $paket = PaketLangganan::latest();
         return response()->json($paket);
     }
 

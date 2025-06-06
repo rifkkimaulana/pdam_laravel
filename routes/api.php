@@ -57,8 +57,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('gangguan', GangguanController::class);
     Route::apiResource('penugasan', PenugasanController::class);
 
-
     Route::apiResource('pembayaran-langganan', PembayaranLanggananController::class);
+
     Route::apiResource('pelanggan', PelangganController::class);
     Route::apiResource('dashboard', DashboardController::class);
     Route::apiResource('pengaturan', PengaturanController::class);

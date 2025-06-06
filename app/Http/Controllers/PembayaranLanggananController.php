@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PembayaranLangganan;
 use App\Models\Langganan;
+use App\Models\Pengelola;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -12,8 +13,9 @@ class PembayaranLanggananController extends Controller
     // Tampilkan semua pembayaran
     public function index()
     {
-        $pembayaran = PembayaranLangganan::with('langganan')->get();
-        return response()->json($pembayaran);
+        $pembayaran_langganan = PembayaranLangganan::with('langganan')->latest()->get();
+
+        return response()->json($pembayaran_langganan);
     }
 
     // Tampilkan pembayaran berdasarkan ID
