@@ -216,9 +216,13 @@ class UserController extends Controller
 
     public function update(Request $request, $id)
     {
+        // Cari pengguna berdasarkan ID
         $user = User::find($id);
-        if (!$user) return response()->json(['message' => 'User tidak ditemukan'], 404);
+        if (!$user) {
+            return response()->json(['message' => 'User tidak ditemukan'], 404);
+        }
 
+        // Validasi input data
         $validated = $request->validate([
             'nama_lengkap'     => 'sometimes|string|max:50',
             'username'         => 'sometimes|string|max:50|unique:tb_user,username,' . $id,
@@ -230,8 +234,17 @@ class UserController extends Controller
             'file_identitas'   => 'nullable',
             'alamat'           => 'sometimes|string',
             'pictures'         => 'nullable',
+            'jabatan'          => 'sometimes|in:Administrator,Pengelola,Pelanggan,Staf',
+            'logo'             => 'nullable',
+            'paket_id'         => 'sometimes|exists:tb_paket_langganan,id',
+            'nama_pengelola'   => 'sometimes|string|max:100',
+            'email_pengelola'  => 'sometimes|email|max:50',
+            'telpon_pengelola' => 'sometimes|string|max:15',
+            'alamat_pengelola' => 'sometimes|string',
+            'deskripsi_pengelola' => 'sometimes|string',
         ]);
 
+        // Perbarui data pengguna jika ada perubahan
         $updateData = [];
         foreach ($validated as $key => $val) {
             if ($val !== null && $val !== "") {
@@ -239,48 +252,89 @@ class UserController extends Controller
             }
         }
 
+        // Jika ada perubahan password, lakukan hash
         if (isset($updateData['password'])) {
             $updateData['password'] = Hash::make($updateData['password']);
         }
 
+        // Tangani upload file identitas
         if ($request->hasFile('file_identitas')) {
+            // Hapus file lama jika ada
             if ($user->file_identitas && File::exists(public_path($user->file_identitas))) {
                 File::delete(public_path($user->file_identitas));
             }
+
             $file = $request->file('file_identitas');
             $fileName = time() . '_identitas.' . $file->getClientOriginalExtension();
             $file->move(public_path('uploads/identitas'), $fileName);
-            $updateData['file_identitas'] = 'uploads/identitas/' . $fileName;
-        } elseif ($request->filled('file_identitas')) {
-            $updateData['file_identitas'] = $request->input('file_identitas');
-        } elseif ($request->exists('file_identitas')) {
-            if ($user->file_identitas && File::exists(public_path($user->file_identitas))) {
-                File::delete(public_path($user->file_identitas));
-            }
-            $updateData['file_identitas'] = null;
+            $updateData['file_identitas'] = 'storage/uploads/identitas/' . $fileName;
         }
 
+        // Tangani upload foto pengguna
         if ($request->hasFile('pictures')) {
+            // Hapus file lama jika ada
             if ($user->pictures && File::exists(public_path($user->pictures))) {
                 File::delete(public_path($user->pictures));
             }
+
             $file = $request->file('pictures');
             $fileName = time() . '_foto.' . $file->getClientOriginalExtension();
             $file->move(public_path('uploads/pictures'), $fileName);
-            $updateData['pictures'] = 'uploads/pictures/' . $fileName;
-        } elseif ($request->filled('pictures')) {
-            $updateData['pictures'] = $request->input('pictures');
-        } elseif ($request->exists('pictures')) {
-            if ($user->pictures && File::exists(public_path($user->pictures))) {
-                File::delete(public_path($user->pictures));
-            }
-            $updateData['pictures'] = null;
+            $updateData['pictures'] = 'storage/uploads/pictures/' . $fileName;
         }
 
+        // Perbarui data pengguna
         $user->update($updateData);
 
-        return response()->json(['message' => 'User berhasil diperbarui', 'user' => $user->fresh()]);
+        // Perbarui data pengelola jika jabatan adalah "Pengelola"
+        if ($user->jabatan === 'Pengelola') {
+            $pengelola = Pengelola::where('user_id', $user->id)->first();
+            if ($pengelola) {
+                $pengelola->update([
+                    'paket_id'       => $request->paket_id ?? $pengelola->paket_id,
+                    'nama_pengelola' => $request->nama_pengelola ?? $pengelola->nama_pengelola,
+                    'email'          => $request->email_pengelola ?? $pengelola->email,
+                    'telpon'         => $request->telpon_pengelola ?? $pengelola->telpon,
+                    'alamat'         => $request->alamat_pengelola ?? $pengelola->alamat,
+                    'logo'           => $request->logo ?? $pengelola->logo,
+                    'deskripsi'      => $request->deskripsi_pengelola ?? $pengelola->deskripsi,
+                ]);
+
+                // Tangani perubahan logo jika ada
+                if ($request->hasFile('logo')) {
+                    // Hapus logo lama jika ada
+                    if ($pengelola->logo && File::exists(public_path($pengelola->logo))) {
+                        File::delete(public_path($pengelola->logo));
+                    }
+
+                    $file = $request->file('logo');
+                    $fileName = time() . '_logo.' . $file->getClientOriginalExtension();
+                    $file->move(public_path('uploads/logo'), $fileName);
+                    $pengelola->update(['logo' => 'storage/uploads/logo/' . $fileName]);
+                }
+            }
+
+            // Perbarui data langganan untuk pengelola
+            $langganan = Langganan::where('pengelola_id', $pengelola->id)->first();
+            if ($langganan) {
+                $langganan->update([
+                    'paket_id'     => $request->paket_id ?? $langganan->paket_id,
+                    'status'       => 'Tidak Aktif',
+                    'mulai_langganan' => $request->mulai_langganan ?? $langganan->mulai_langganan,
+                    'akhir_langganan' => $request->akhir_langganan ?? $langganan->akhir_langganan,
+                ]);
+            }
+        }
+
+        // Response setelah berhasil mengupdate
+        return response()->json([
+            'message' => 'User berhasil diperbarui',
+            'user' => $user,
+            'pengelola' => $pengelola ?? null,
+            'langganan' => $langganan ?? null
+        ]);
     }
+
 
     public function destroy($id)
     {
