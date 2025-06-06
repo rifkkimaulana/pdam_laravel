@@ -14,6 +14,7 @@ use App\Models\PembayaranLangganan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
@@ -414,6 +415,19 @@ class UserController extends Controller
 
                     // Menghapus data Pengelola setelah pengecekan riwayat pembayaran
                     Pengelola::where('user_id', $id)->delete();
+                }
+
+                // Menghapus gambar yang terkait dengan Pengelola (pictures, file_identitas, logo)
+                if ($pengelola->logo && Storage::exists($pengelola->logo)) {
+                    Storage::delete($pengelola->logo); // Hapus file logo
+                }
+
+                if ($pengelola->user->pictures && Storage::exists($pengelola->user->pictures)) {
+                    Storage::delete($pengelola->user->pictures); // Hapus file pictures
+                }
+
+                if ($pengelola->user->file_identitas && Storage::exists($pengelola->user->file_identitas)) {
+                    Storage::delete($pengelola->user->file_identitas); // Hapus file identitas
                 }
 
                 // Menghapus user (meskipun pengelola tidak ditemukan)
