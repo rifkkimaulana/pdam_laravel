@@ -9,6 +9,8 @@ use App\Models\Pengelola;
 use App\Models\Pelanggan;
 use App\Models\Staf;
 use App\Models\PaketPengguna;
+use App\Models\Pembayaran;
+use App\Models\PembayaranLangganan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\File;
@@ -74,7 +76,11 @@ class UserController extends Controller
         $search = $request->input('search');
         $status = $request->input('status');
 
-        $query = User::latest();
+        if ($request->input('jabatan') === 'Pengelola') {
+            $query = User::where('jabatan', $request->input('jabatan'))->latest();
+        } else {
+            $query = User::latest();
+        }
 
         if ($search) {
             $query->where('nama_lengkap', 'like', '%' . $search . '%');
@@ -381,16 +387,57 @@ class UserController extends Controller
     public function destroy($id)
     {
         $user = User::find($id);
+
         if (!$user) {
             return response()->json(['message' => 'User not found'], 404);
         }
 
-        if ($user->jabatan == 'Pengelola') {
-            Pengelola::where('user_id', $id)->delete();
-        } elseif ($user->jabatan == 'Pelanggan') {
-            Pelanggan::where('user_id', $id)->delete();
-        } elseif ($user->jabatan == 'Staf') {
-            Staf::where('user_id', $id)->delete();
+        switch ($user->jabatan) {
+            case 'Pengelola':
+                $pengelola = Pengelola::where('user_id', $id)->first();
+
+                if ($pengelola) {
+                    // Mencari langganan pengelola
+                    $langganan = Langganan::where('pengelola_id', $pengelola->id)->first();
+
+                    if ($langganan) {
+                        // Mengecek apakah ada pembayaran untuk langganan pengelola
+                        $pembayaran_langganan = PembayaranLangganan::where('langganan_id', $langganan->id)->first();
+                        if ($pembayaran_langganan) {
+                            // Jika ada pembayaran, kembalikan peringatan
+                            return response()->json(['message' => 'Pengelola ini memiliki riwayat pembayaran. Tidak dapat menghapus user.'], 400);
+                        }
+
+                        // Menghapus langganan jika tidak ada riwayat pembayaran
+                        Langganan::where('pengelola_id', $pengelola->id)->delete();
+                    }
+
+                    // Menghapus data Pengelola setelah pengecekan riwayat pembayaran
+                    Pengelola::where('user_id', $id)->delete();
+                }
+
+                // Menghapus user (meskipun pengelola tidak ditemukan)
+                User::where('id', $id)->delete();
+
+                return response()->json(['message' => 'User dan data terkait berhasil dihapus!'], 200);
+                break;
+
+
+            case 'Pelanggan':
+
+                //Pelanggan::where('user_id', $id)->delete();
+
+                // Menghapus tagihan pelanggan jika ada
+                // TagihanPelanggan::where('pelanggan_id', $user->pelanggan->id)->delete();
+                break;
+
+            case 'Staf':
+                // Menghapus data Staf terkait user
+                // Staf::where('user_id', $id)->delete();
+                break;
+
+            default:
+                return response()->json(['message' => 'Unknown jabatan'], 400);
         }
 
         $user->delete();
