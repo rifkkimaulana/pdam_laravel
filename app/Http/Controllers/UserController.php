@@ -66,20 +66,62 @@ class UserController extends Controller
         return $row;
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::latest()->get();
-        $result = [];
+        $page = $request->input('page', 1);
+        $limit = $request->input('limit', 10);
 
-        foreach ($users as $user) {
-            $row = $this->getUserData($user);
-            if ($row) {
-                $result[] = $row;
-            }
+        $search = $request->input('search');
+        $status = $request->input('status');
+
+        $query = User::latest();
+
+        if ($search) {
+            $query->where('nama_lengkap', 'like', '%' . $search . '%');
         }
 
-        return response()->json($result);
+        // Jika filter status aktif, ambil hanya Pengelola, lalu filter status di PHP
+        if ($status) {
+            $query->where('jabatan', 'Pengelola');
+            $users = $query->get(); // Ambil semua dulu, filter manual
+            $filtered = [];
+            foreach ($users as $user) {
+                $row = $this->getUserData($user);
+                if (isset($row['langganan']['status']) && $row['langganan']['status'] === $status) {
+                    $filtered[] = $row;
+                }
+            }
+            // Paginate manual
+            $total = count($filtered);
+            $offset = ($page - 1) * $limit;
+            $result = array_slice($filtered, $offset, $limit);
+
+            return response()->json([
+                'data' => $result,
+                'total' => $total,
+                'page' => (int)$page,
+                'last_page' => ceil($total / $limit),
+                'per_page' => (int)$limit,
+            ]);
+        } else {
+            $users = $query->paginate($limit);
+            $result = [];
+            foreach ($users as $user) {
+                $row = $this->getUserData($user);
+                if ($row) {
+                    $result[] = $row;
+                }
+            }
+            return response()->json([
+                'data' => $result,
+                'total' => $users->total(),
+                'page' => $users->currentPage(),
+                'last_page' => $users->lastPage(),
+                'per_page' => $users->perPage(),
+            ]);
+        }
     }
+
 
     public function show($id)
     {
