@@ -7,17 +7,15 @@ use Illuminate\Http\Request;
 
 class PaketLanggananController extends Controller
 {
-    // Daftar paket langganan
     public function index()
     {
-        $paket = PaketLangganan::latest();
+        $paket = PaketLangganan::latest()->get();
         return response()->json($paket);
     }
 
-    // Tambah paket langganan
-    public function store(Request $request)
+    private function validatePaketLangganan(Request $request)
     {
-        $validated = $request->validate([
+        return $request->validate([
             'nama_paket'   => 'required|string|max:255',
             'harga_paket'  => 'required|numeric',
             'masa_aktif'   => 'required|integer',
@@ -25,30 +23,23 @@ class PaketLanggananController extends Controller
             'deskripsi'    => 'nullable|string',
             'status'       => 'boolean',
         ]);
+    }
 
+    public function store(Request $request)
+    {
+        $validated = $this->validatePaketLangganan($request);
         $paket = PaketLangganan::create($validated);
         return response()->json(['message' => 'Paket berhasil ditambahkan', 'data' => $paket], 201);
     }
 
-    // Ubah paket langganan
     public function update(Request $request, $id)
     {
         $paket = PaketLangganan::findOrFail($id);
-
-        $validated = $request->validate([
-            'nama_paket'   => 'required|string|max:255',
-            'harga_paket'  => 'required|numeric',
-            'masa_aktif'   => 'required|integer',
-            'satuan'       => 'required|in:hari,bulan',
-            'deskripsi'    => 'nullable|string',
-            'status'       => 'boolean',
-        ]);
-
+        $validated = $this->validatePaketLangganan($request);
         $paket->update($validated);
         return response()->json(['message' => 'Paket berhasil diperbarui', 'data' => $paket]);
     }
 
-    // Detail paket langganan
     public function show($id)
     {
         $paket = PaketLangganan::find($id);
@@ -64,8 +55,6 @@ class PaketLanggananController extends Controller
         ]);
     }
 
-
-    // Hapus paket langganan
     public function destroy($id)
     {
         $paket = PaketLangganan::findOrFail($id);
