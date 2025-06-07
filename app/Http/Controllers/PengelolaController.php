@@ -15,9 +15,8 @@ class PengelolaController extends Controller
         $jabatan = strtolower($user->jabatan ?? '');
 
         if ($jabatan === 'pengelola') {
-            $pengelolas = Pengelola::select('id', 'user_id', 'nama_pengelola', 'email', 'telpon', 'alamat')
-                ->where('user_id', $user->id)
-                ->with('user:id,nama_lengkap')
+            $pengelolas = Pengelola::where('user_id', $user->id)
+                ->with('user')
                 ->get();
         } else {
             $pengelolas = Pengelola::select('id', 'user_id', 'nama_pengelola', 'email', 'telpon', 'alamat')

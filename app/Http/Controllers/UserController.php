@@ -129,14 +129,13 @@ class UserController extends Controller
         }
     }
 
+    // public function show($id)
+    // {
+    //     $user = User::findOrFail($id);
+    //     $row = $this->getUserData($user);
 
-    public function show($id)
-    {
-        $user = User::findOrFail($id);
-        $row = $this->getUserData($user);
-
-        return response()->json($row);
-    }
+    //     return response()->json($row);
+    // }
 
     public function store(Request $request)
     {
@@ -303,6 +302,15 @@ class UserController extends Controller
                 $updateData[$key] = $val;
             }
         }
+
+        // Cek jika ada permintaan perubahan password dan kolom password_lama
+        if ($request->filled('password') && $request->filled('password_lama')) {
+            // Verifikasi password lama
+            if (!Hash::check($request->input('password_lama'), $user->password)) {
+                return response()->json(['message' => 'Password lama salah'], 400);
+            }
+        }
+        // Jika password_lama tidak ada, lanjutkan proses update seperti biasa
 
         // Jika ada perubahan password, lakukan hash
         if (isset($updateData['password'])) {
