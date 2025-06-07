@@ -116,7 +116,7 @@ class PembayaranLanggananController extends Controller
             if (!$paket) {
                 return response()->json(['message' => 'Paket tidak ditemukan'], 404);
             }
-            
+
             // Hitung mulai dan akhir langganan
             $mulai = $request->has('mulai_langganan') ? \Carbon\Carbon::parse($request->mulai_langganan) : now();
             $satuan = strtolower($paket->satuan ?? 'hari');
