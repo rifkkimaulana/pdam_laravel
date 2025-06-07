@@ -21,6 +21,7 @@ use App\Http\Controllers\PengelolaController;
 use App\Http\Controllers\PaketController;
 use App\Http\Controllers\BlokTarifController;
 use App\Http\Controllers\StafController;
+use App\Http\Controllers\FileController;
 
 
 /*
@@ -59,13 +60,17 @@ Route::middleware('auth:sanctum')->group(function () {
     //Route::apiResource('penugasan', PenugasanController::class);
 
     Route::apiResource('pembayaran-langganan', PembayaranLanggananController::class);
+    Route::apiResource('pengelola', PengelolaController::class);
 
     // Route::apiResource('pelanggan', PelangganController::class);
     // Route::apiResource('dashboard', DashboardController::class);
     // Route::apiResource('pengaturan', PengaturanController::class);
-    // Route::apiResource('pengelola', PengelolaController::class);
     //  Route::apiResource('staf', StafController::class);
 
     // Route::apiResource('langganan', LanggananController::class);
     Route::apiResource('paket-langganan', PaketLanggananController::class);
+
+    Route::get('/private-file/{folder}/{filename}', [FileController::class, 'showPrivateFile'])
+        ->where('folder', 'bukti_bayar|identitas|logo|pictures')
+        ->name('private-file.show');
 });

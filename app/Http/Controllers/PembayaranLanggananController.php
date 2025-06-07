@@ -4,26 +4,51 @@ namespace App\Http\Controllers;
 
 use App\Models\PembayaranLangganan;
 use App\Models\Langganan;
-use App\Models\Pengelola;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class PembayaranLanggananController extends Controller
 {
-    // Tampilkan semua pembayaran
-    public function index()
-    {
-        $pembayaran_langganan = PembayaranLangganan::with('langganan')->latest()->get();
 
-        return response()->json($pembayaran_langganan);
-    }
-
-    // Tampilkan pembayaran berdasarkan ID
-    public function show($id)
+    public function index(Request $request)
     {
-        $pembayaran =   PembayaranLangganan::with('langganan')->findOrFail($id);
+        $limit = $request->get('limit', 10);
+        $search = $request->get('search', '');
+        $filter = $request->get('filter', '');
+
+        $pembayaran = PembayaranLangganan::select('id', 'langganan_id', 'tanggal_bayar', 'jumlah_bayar', 'metode', 'status', 'bukti_bayar')
+            ->with('langganan:id,pengelola_id,paket_id,status')
+            ->with('langganan.pengelola:id,user_id,nama_pengelola')
+            ->with('langganan.paket:id,nama_paket,harga_paket')
+            ->with('langganan.user:id,nama_lengkap');
+
+        // Filter Status Pembayaran
+        if ($filter) {
+            $pembayaran = $pembayaran->where('status', $filter);
+        }
+
+        // Pencarian nama lengkap pengguna atau nama pengelola
+        if ($search) {
+            $pembayaran = $pembayaran->whereHas('langganan.user', function ($q) use ($search) {
+                $q->where('nama_lengkap', 'like', "%$search%");
+            })->orWhereHas('langganan.pengelola', function ($q) use ($search) {
+                $q->where('nama_pengelola', 'like', "%$search%");
+            });
+        }
+
+        $pembayaran = $pembayaran->paginate($limit);
+
         return response()->json($pembayaran);
     }
+
+
+
+    // // Tampilkan pembayaran berdasarkan ID
+    // public function show($id)
+    // {
+    //     $pembayaran =   PembayaranLangganan::with('langganan')->findOrFail($id);
+    //     return response()->json($pembayaran);
+    // }
 
     // Tambah pembayaran baru
     public function store(Request $request)
@@ -56,50 +81,50 @@ class PembayaranLanggananController extends Controller
     }
 
 
-    // Update pembayaran
-    public function update(Request $request, $id)
-    {
-        $pembayaran = PembayaranLangganan::findOrFail($id);
+    // // Update pembayaran
+    // public function update(Request $request, $id)
+    // {
+    //     $pembayaran = PembayaranLangganan::findOrFail($id);
 
-        $request->validate([
-            'langganan_id' => 'required|exists:tb_langganan,id',
-            'tanggal_bayar' => 'required|date',
-            'metode' => 'required|in:Cash,Transfer',
-            'status' => 'required|in:Menunggu,Diterima,Ditolak',
-            'bukti_bayar' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
-        ]);
+    //     $request->validate([
+    //         'langganan_id' => 'required|exists:tb_langganan,id',
+    //         'tanggal_bayar' => 'required|date',
+    //         'metode' => 'required|in:Cash,Transfer',
+    //         'status' => 'required|in:Menunggu,Diterima,Ditolak',
+    //         'bukti_bayar' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+    //     ]);
 
-        $langganan = Langganan::findOrFail($request->langganan_id);
-        $jumlah_bayar = $langganan->paket->harga;
+    //     $langganan = Langganan::findOrFail($request->langganan_id);
+    //     $jumlah_bayar = $langganan->paket->harga;
 
-        $data = $request->only(['langganan_id', 'tanggal_bayar', 'metode', 'status']);
-        $data['jumlah_bayar'] = $jumlah_bayar;
+    //     $data = $request->only(['langganan_id', 'tanggal_bayar', 'metode', 'status']);
+    //     $data['jumlah_bayar'] = $jumlah_bayar;
 
-        if ($request->hasFile('bukti_bayar')) {
-            // Hapus file lama jika ada
-            if ($pembayaran->bukti_bayar) {
-                Storage::delete($pembayaran->bukti_bayar);
-            }
-            $data['bukti_bayar'] = $request->file('bukti_bayar')->store('bukti_bayar');
-        }
+    //     if ($request->hasFile('bukti_bayar')) {
+    //         // Hapus file lama jika ada
+    //         if ($pembayaran->bukti_bayar) {
+    //             Storage::delete($pembayaran->bukti_bayar);
+    //         }
+    //         $data['bukti_bayar'] = $request->file('bukti_bayar')->store('bukti_bayar');
+    //     }
 
-        $pembayaran->update($data);
+    //     $pembayaran->update($data);
 
-        return response()->json($pembayaran);
-    }
+    //     return response()->json($pembayaran);
+    // }
 
-    // Hapus pembayaran
-    public function destroy($id)
-    {
-        $pembayaran = PembayaranLangganan::findOrFail($id);
+    // // Hapus pembayaran
+    // public function destroy($id)
+    // {
+    //     $pembayaran = PembayaranLangganan::findOrFail($id);
 
-        // Hapus file bukti bayar jika ada
-        if ($pembayaran->bukti_bayar) {
-            Storage::delete($pembayaran->bukti_bayar);
-        }
+    //     // Hapus file bukti bayar jika ada
+    //     if ($pembayaran->bukti_bayar) {
+    //         Storage::delete($pembayaran->bukti_bayar);
+    //     }
 
-        $pembayaran->delete();
+    //     $pembayaran->delete();
 
-        return response()->json(['message' => 'Data pembayaran berhasil dihapus']);
-    }
+    //     return response()->json(['message' => 'Data pembayaran berhasil dihapus']);
+    // }
 }
