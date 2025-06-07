@@ -11,12 +11,23 @@ class PengelolaController extends Controller
 
     public function index(Request $request)
     {
-        $pengelolas = Pengelola::select('id', 'user_id', 'nama_pengelola')
-            ->with('user:id,nama_lengkap')->get();
+        $user = $request->user();
+        $jabatan = strtolower($user->jabatan ?? '');
+
+        if ($jabatan === 'pengelola') {
+            $pengelolas = Pengelola::select('id', 'user_id', 'nama_pengelola', 'email', 'telpon', 'alamat')
+                ->where('user_id', $user->id)
+                ->with('user:id,nama_lengkap')
+                ->get();
+        } else {
+            $pengelolas = Pengelola::select('id', 'user_id', 'nama_pengelola', 'email', 'telpon', 'alamat')
+                ->with('user:id,nama_lengkap')
+                ->get();
+        }
 
         $pengelolas->transform(function ($pengelola) {
-            $pengelola->langganan = Langganan::where('pengelola_id', $pengelola->id)->select('id', 'paket_id', 'status')
-                ->with(['paket:id,nama_paket,harga_paket'])
+            $pengelola->langganan = Langganan::where('pengelola_id', $pengelola->id)->select('id', 'paket_id', 'status', 'mulai_langganan', 'akhir_langganan')
+                ->with(['paket'])
                 ->get();
             return $pengelola;
         });
