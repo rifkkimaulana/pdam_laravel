@@ -161,8 +161,9 @@ class UserController extends Controller
         if ($request->hasFile('file_identitas')) {
             $file = $request->file('file_identitas');
             $fileName = time() . '_' . uniqid() . '_identitas.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/identitas'), $fileName);
-            $validated['file_identitas'] = 'storage/uploads/identitas/' . $fileName;
+            $path = 'private-file/identitas/' . $fileName;
+            Storage::disk('local')->put($path, file_get_contents($file));
+            $validated['file_identitas'] = $path;
         } else if ($request->filled('file_identitas')) {
             $validated['file_identitas'] = $request->input('file_identitas');
         } else {
@@ -173,8 +174,9 @@ class UserController extends Controller
         if ($request->hasFile('pictures')) {
             $file = $request->file('pictures');
             $fileName = time() . '_' . uniqid() . '_foto.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/pictures'), $fileName);
-            $validated['pictures'] = 'storage/uploads/pictures/' . $fileName;
+            $path = 'private-file/pictures/' . $fileName;
+            Storage::disk('local')->put($path, file_get_contents($file));
+            $validated['pictures'] = $path;
         } else if ($request->filled('pictures')) {
             $validated['pictures'] = $request->input('pictures');
         } else {
@@ -212,9 +214,10 @@ class UserController extends Controller
             if ($request->hasFile('logo_pengelola')) {
                 $file = $request->file('logo_pengelola');
                 $fileName = time() . '_logo.' . $file->getClientOriginalExtension();
-                $file->move(public_path('uploads/logo'), $fileName);
+                $path = 'private-file/logo/' . $fileName;
+                Storage::disk('local')->put($path, file_get_contents($file));
                 // Update logo path for pengelola
-                $pengelola->update(['logo' => 'storage/uploads/logo/' . $fileName]);
+                $pengelola->update(['logo' => $path]);
             }
 
             // Create langganan entry for the pengelola (initial status "Tidak Aktif")
@@ -309,27 +312,29 @@ class UserController extends Controller
         // Tangani upload file identitas
         if ($request->hasFile('file_identitas')) {
             // Hapus file lama jika ada
-            if ($user->file_identitas && File::exists(public_path($user->file_identitas))) {
-                File::delete(public_path($user->file_identitas));
+            if ($user->file_identitas && Storage::disk('local')->exists($user->file_identitas)) {
+                Storage::disk('local')->delete($user->file_identitas);
             }
 
             $file = $request->file('file_identitas');
             $fileName = time() . '_identitas.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/identitas'), $fileName);
-            $updateData['file_identitas'] = 'storage/uploads/identitas/' . $fileName;
+            $path = 'private-file/identitas/' . $fileName;
+            Storage::disk('local')->put($path, file_get_contents($file));
+            $updateData['file_identitas'] = $path;
         }
 
         // Tangani upload foto pengguna
         if ($request->hasFile('pictures')) {
             // Hapus file lama jika ada
-            if ($user->pictures && File::exists(public_path($user->pictures))) {
-                File::delete(public_path($user->pictures));
+            if ($user->pictures && Storage::disk('local')->exists($user->pictures)) {
+                Storage::disk('local')->delete($user->pictures);
             }
 
             $file = $request->file('pictures');
             $fileName = time() . '_foto.' . $file->getClientOriginalExtension();
-            $file->move(public_path('uploads/pictures'), $fileName);
-            $updateData['pictures'] = 'storage/uploads/pictures/' . $fileName;
+            $path = 'private-file/pictures/' . $fileName;
+            Storage::disk('local')->put($path, file_get_contents($file));
+            $updateData['pictures'] = $path;
         }
 
         // Perbarui data pengguna
@@ -352,14 +357,15 @@ class UserController extends Controller
                 // Tangani perubahan logo jika ada
                 if ($request->hasFile('logo')) {
                     // Hapus logo lama jika ada
-                    if ($pengelola->logo && File::exists(public_path($pengelola->logo))) {
-                        File::delete(public_path($pengelola->logo));
+                    if ($pengelola->logo && Storage::disk('local')->exists($pengelola->logo)) {
+                        Storage::disk('local')->delete($pengelola->logo);
                     }
 
                     $file = $request->file('logo');
                     $fileName = time() . '_logo.' . $file->getClientOriginalExtension();
-                    $file->move(public_path('uploads/logo'), $fileName);
-                    $pengelola->update(['logo' => 'storage/uploads/logo/' . $fileName]);
+                    $path = 'private-file/logo/' . $fileName;
+                    Storage::disk('local')->put($path, file_get_contents($file));
+                    $pengelola->update(['logo' => $path]);
                 }
             }
 
@@ -418,16 +424,16 @@ class UserController extends Controller
                 }
 
                 // Menghapus gambar yang terkait dengan Pengelola (pictures, file_identitas, logo)
-                if ($pengelola->logo && Storage::exists($pengelola->logo)) {
-                    Storage::delete($pengelola->logo); // Hapus file logo
+                if ($pengelola->logo && Storage::disk('local')->exists($pengelola->logo)) {
+                    Storage::disk('local')->delete($pengelola->logo); // Hapus file logo
                 }
 
-                if ($pengelola->user->pictures && Storage::exists($pengelola->user->pictures)) {
-                    Storage::delete($pengelola->user->pictures); // Hapus file pictures
+                if ($pengelola->user->pictures && Storage::disk('local')->exists($pengelola->user->pictures)) {
+                    Storage::disk('local')->delete($pengelola->user->pictures); // Hapus file pictures
                 }
 
-                if ($pengelola->user->file_identitas && Storage::exists($pengelola->user->file_identitas)) {
-                    Storage::delete($pengelola->user->file_identitas); // Hapus file identitas
+                if ($pengelola->user->file_identitas && Storage::disk('local')->exists($pengelola->user->file_identitas)) {
+                    Storage::disk('local')->delete($pengelola->user->file_identitas); // Hapus file identitas
                 }
 
                 // Menghapus user (meskipun pengelola tidak ditemukan)
