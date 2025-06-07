@@ -117,8 +117,14 @@ class PembayaranLanggananController extends Controller
                 return response()->json(['message' => 'Paket tidak ditemukan'], 404);
             }
 
-            // Hitung mulai dan akhir langganan
-            $mulai = $request->has('mulai_langganan') ? \Carbon\Carbon::parse($request->mulai_langganan) : now();
+            // Hitung mulai dan akhir langganan (perpanjangan)
+            $now = now();
+            $akhirLama = $langganan->akhir_langganan ? \Carbon\Carbon::parse($langganan->akhir_langganan) : null;
+            if ($akhirLama && $now->lt($akhirLama)) {
+                $mulai = $akhirLama->copy();
+            } else {
+                $mulai = $now;
+            }
             $satuan = strtolower($paket->satuan ?? 'hari');
             $masaAktif = (int)($paket->masa_aktif ?? 30);
             switch ($satuan) {
