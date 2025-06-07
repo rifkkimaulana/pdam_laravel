@@ -20,7 +20,7 @@ class PembayaranLanggananController extends Controller
             ->with('langganan:id,pengelola_id,paket_id,status')
             ->with('langganan.pengelola:id,user_id,nama_pengelola')
             ->with('langganan.paket:id,nama_paket,harga_paket')
-            ->with('langganan.user:id,nama_lengkap');
+            ->with('langganan.pengelola.user:id,nama_lengkap');
 
         // Filter Status Pembayaran
         if ($filter) {
