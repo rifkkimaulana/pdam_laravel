@@ -16,11 +16,32 @@ class PembayaranLanggananController extends Controller
         $search = $request->get('search', '');
         $filter = $request->get('filter', '');
 
+        // Ambil user id dan jabatan dari token
+        $user = $request->user();
+        $user_id = $user ? $user->id : null;
+        $jabatan = $user ? ($user->jabatan ?? null) : null;
+
+        // Cari pengelola_id berdasarkan user_id
+        $pengelola_id = null;
+        if ($user_id && $jabatan !== 'Administrator') {
+            $pengelola = \App\Models\Pengelola::where('user_id', $user_id)->first();
+            if ($pengelola) {
+                $pengelola_id = $pengelola->id;
+            }
+        }
+
         $pembayaran = PembayaranLangganan::select('id', 'langganan_id', 'tanggal_bayar', 'jumlah_bayar', 'metode', 'status', 'bukti_bayar')
             ->with('langganan:id,pengelola_id,paket_id,status')
             ->with('langganan.pengelola:id,user_id,nama_pengelola')
             ->with('langganan.paket:id,nama_paket,harga_paket')
             ->with('langganan.pengelola.user:id,nama_lengkap');
+
+        // Filter berdasarkan pengelola_id dari user token jika ditemukan dan bukan Administrator
+        if ($pengelola_id) {
+            $pembayaran = $pembayaran->whereHas('langganan', function ($q) use ($pengelola_id) {
+                $q->where('pengelola_id', $pengelola_id);
+            });
+        }
 
         // Filter Status Pembayaran
         if ($filter) {
@@ -29,10 +50,12 @@ class PembayaranLanggananController extends Controller
 
         // Pencarian nama lengkap pengguna atau nama pengelola
         if ($search) {
-            $pembayaran = $pembayaran->whereHas('langganan.user', function ($q) use ($search) {
-                $q->where('nama_lengkap', 'like', "%$search%");
-            })->orWhereHas('langganan.pengelola', function ($q) use ($search) {
-                $q->where('nama_pengelola', 'like', "%$search%");
+            $pembayaran = $pembayaran->where(function ($query) use ($search) {
+                $query->whereHas('langganan.user', function ($q) use ($search) {
+                    $q->where('nama_lengkap', 'like', "%$search%");
+                })->orWhereHas('langganan.pengelola', function ($q) use ($search) {
+                    $q->where('nama_pengelola', 'like', "%$search%");
+                });
             });
         }
 
