@@ -90,44 +90,68 @@ class PembayaranLanggananController extends Controller
         }
     }
 
+
+
+
+    public function update(Request $request, $id)
+    {
+        // Cari pembayaran berdasarkan id
+        $pembayaran = PembayaranLangganan::find($id);
+        if (!$pembayaran) {
+            return response()->json(['message' => 'Pembayaran tidak ditemukan'], 404);
+        }
+
+        // Validasi status
+        $request->validate([
+            'status' => 'required|in:Menunggu,Diterima,Ditolak',
+        ]);
+
+        // Jika status Diterima, update langganan
+        if ($request->status === 'Diterima') {
+            $langganan = Langganan::with('paket')->find($pembayaran->langganan_id);
+            if (!$langganan) {
+                return response()->json(['message' => 'Langganan tidak ditemukan'], 404);
+            }
+            $paket = $langganan->paket;
+            if (!$paket) {
+                return response()->json(['message' => 'Paket tidak ditemukan'], 404);
+            }
+            
+            // Hitung mulai dan akhir langganan
+            $mulai = $request->has('mulai_langganan') ? \Carbon\Carbon::parse($request->mulai_langganan) : now();
+            $satuan = strtolower($paket->satuan ?? 'hari');
+            $masaAktif = (int)($paket->masa_aktif ?? 30);
+            switch ($satuan) {
+                case 'hari':
+                    $akhir = $mulai->copy()->addDays($masaAktif);
+                    break;
+                case 'bulan':
+                    $akhir = $mulai->copy()->addMonths($masaAktif);
+                    break;
+                case 'tahun':
+                    $akhir = $mulai->copy()->addYears($masaAktif);
+                    break;
+                default:
+                    $akhir = $mulai->copy()->addDays($masaAktif);
+                    break;
+            }
+            $langganan->mulai_langganan = $mulai;
+            $langganan->akhir_langganan = $akhir;
+            $langganan->status = 'Aktif';
+            $langganan->save();
+        }
+
+        // Update status pembayaran
+        $pembayaran->status = $request->status;
+        $pembayaran->save();
+
+        return response()->json(['message' => 'Status pembayaran berhasil diupdate', 'data' => $pembayaran]);
+    }
+
     // // Tampilkan pembayaran berdasarkan ID
     // public function show($id)
     // {
     //     $pembayaran =   PembayaranLangganan::with('langganan')->findOrFail($id);
     //     return response()->json($pembayaran);
     // }
-
-    // // Update pembayaran
-    // public function update(Request $request, $id)
-    // {
-    //     $pembayaran = PembayaranLangganan::findOrFail($id);
-
-    //     $request->validate([
-    //         'langganan_id' => 'required|exists:tb_langganan,id',
-    //         'tanggal_bayar' => 'required|date',
-    //         'metode' => 'required|in:Cash,Transfer',
-    //         'status' => 'required|in:Menunggu,Diterima,Ditolak',
-    //         'bukti_bayar' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
-    //     ]);
-
-    //     $langganan = Langganan::findOrFail($request->langganan_id);
-    //     $jumlah_bayar = $langganan->paket->harga;
-
-    //     $data = $request->only(['langganan_id', 'tanggal_bayar', 'metode', 'status']);
-    //     $data['jumlah_bayar'] = $jumlah_bayar;
-
-    //     if ($request->hasFile('bukti_bayar')) {
-    //         // Hapus file lama jika ada
-    //         if ($pembayaran->bukti_bayar) {
-    //             Storage::delete($pembayaran->bukti_bayar);
-    //         }
-    //         $data['bukti_bayar'] = $request->file('bukti_bayar')->store('bukti_bayar');
-    //     }
-
-    //     $pembayaran->update($data);
-
-    //     return response()->json($pembayaran);
-    // }
-
-
 }
