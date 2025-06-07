@@ -15,8 +15,8 @@ class PengelolaController extends Controller
             ->with('user:id,nama_lengkap')->get();
 
         $pengelolas->transform(function ($pengelola) {
-            $pengelola->langganan = Langganan::where('pengelola_id', $pengelola->id)->select('id')
-                // ->with(['user:id,nama_lengkap', 'paket:id,nama_paket,harga_paket'])
+            $pengelola->langganan = Langganan::where('pengelola_id', $pengelola->id)->select('id', 'paket_id', 'status')
+                ->with(['paket:id,nama_paket,harga_paket'])
                 ->get();
             return $pengelola;
         });
