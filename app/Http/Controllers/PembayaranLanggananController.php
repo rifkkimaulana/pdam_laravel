@@ -41,16 +41,6 @@ class PembayaranLanggananController extends Controller
         return response()->json($pembayaran);
     }
 
-
-
-    // // Tampilkan pembayaran berdasarkan ID
-    // public function show($id)
-    // {
-    //     $pembayaran =   PembayaranLangganan::with('langganan')->findOrFail($id);
-    //     return response()->json($pembayaran);
-    // }
-
-    // Tambah pembayaran baru
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -62,24 +52,26 @@ class PembayaranLanggananController extends Controller
             'bukti_bayar' => 'nullable|file|mimes:jpg,jpeg,png,pdf',
         ]);
 
-        $pembayaran = new PembayaranLangganan();
-        $pembayaran->langganan_id = $validated['langganan_id'];
-        $pembayaran->tanggal_bayar = $validated['tanggal_bayar'];
-        $pembayaran->jumlah_bayar = $validated['jumlah_bayar'];
-        $pembayaran->metode = $validated['metode'];
-        $pembayaran->status = $validated['status'];
+        $data = $validated;
 
         if ($request->hasFile('bukti_bayar')) {
             $file = $request->file('bukti_bayar');
-            $path = $file->store('bukti_bayar', 'public');
-            $pembayaran->bukti_bayar = $path;
+            $filename = uniqid('bukti_') . '.' . $file->getClientOriginalExtension();
+            $file->storeAs('private-file/bukti_bayar', $filename, 'local');
+            $data['bukti_bayar'] = 'bukti_bayar/' . $filename;
         }
 
-        $pembayaran->save();
+        $pembayaran = PembayaranLangganan::create($data);
 
         return response()->json(['message' => 'Data pembayaran berhasil disimpan', 'data' => $pembayaran], 201);
     }
 
+    // // Tampilkan pembayaran berdasarkan ID
+    // public function show($id)
+    // {
+    //     $pembayaran =   PembayaranLangganan::with('langganan')->findOrFail($id);
+    //     return response()->json($pembayaran);
+    // }
 
     // // Update pembayaran
     // public function update(Request $request, $id)

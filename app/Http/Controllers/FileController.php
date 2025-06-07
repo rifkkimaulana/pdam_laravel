@@ -11,7 +11,7 @@ class FileController extends Controller
     public function showPrivateFile(Request $request, $folder, $filename)
     {
         // Cek hak akses user
-        if (!$request->user() || !$request->user()->can('view-private-file')) {
+        if (!$request->user()) {
             abort(403, 'Unauthorized');
         }
 
