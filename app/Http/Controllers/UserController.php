@@ -149,20 +149,19 @@ class UserController extends Controller
             'telpon'           => 'required|string|max:15',
             'jenis_identitas'  => 'required|in:KTP,SIM,PASPOR,ID Lainnya',
             'nomor_identitas'  => 'required|string|max:20',
-            'file_identitas'   => 'nullable',
+            'file_identitas'   => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'alamat'           => 'required|string',
-            'pictures'         => 'nullable',
-            'logo'             => 'nullable',
+            'pictures'         => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'logo'             => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'jabatan'          => 'required|in:Administrator,Pengelola,Pelanggan,Staf'
         ]);
 
         // Handle file upload for file_identitas
         if ($request->hasFile('file_identitas')) {
             $file = $request->file('file_identitas');
-            $fileName = time() . '_' . uniqid() . '_identitas.' . $file->getClientOriginalExtension();
-            $path = 'private-file/identitas/' . $fileName;
-            Storage::disk('local')->put($path, file_get_contents($file));
-            $validated['file_identitas'] = $path;
+            $filename = uniqid('identitas_') . '.' . $file->getClientOriginalExtension();
+            $file->storeAs('private-file/identitas', $filename, 'local');
+            $validated['file_identitas'] = 'identitas/' . $filename;
         } else if ($request->filled('file_identitas')) {
             $validated['file_identitas'] = $request->input('file_identitas');
         } else {
@@ -172,14 +171,25 @@ class UserController extends Controller
         // Handle file upload for pictures
         if ($request->hasFile('pictures')) {
             $file = $request->file('pictures');
-            $fileName = time() . '_' . uniqid() . '_foto.' . $file->getClientOriginalExtension();
-            $path = 'private-file/pictures/' . $fileName;
-            Storage::disk('local')->put($path, file_get_contents($file));
-            $validated['pictures'] = $path;
+            $filename = uniqid('foto_') . '.' . $file->getClientOriginalExtension();
+            $file->storeAs('private-file/pictures', $filename, 'local');
+            $validated['pictures'] = 'pictures/' . $filename;
         } else if ($request->filled('pictures')) {
             $validated['pictures'] = $request->input('pictures');
         } else {
             $validated['pictures'] = '';
+        }
+
+        // Handle file upload for logo
+        if ($request->hasFile('logo')) {
+            $file = $request->file('logo');
+            $filename = uniqid('logo_') . '.' . $file->getClientOriginalExtension();
+            $file->storeAs('private-file/logo', $filename, 'local');
+            $validated['logo'] = 'logo/' . $filename;
+        } else if ($request->filled('logo')) {
+            $validated['logo'] = $request->input('logo');
+        } else {
+            $validated['logo'] = '';
         }
 
         // Handle password hash
@@ -282,11 +292,11 @@ class UserController extends Controller
             'telpon'           => 'sometimes|string|max:15',
             'jenis_identitas'  => 'sometimes|in:KTP,SIM,PASPOR,ID Lainnya',
             'nomor_identitas'  => 'sometimes|string|max:20',
-            'file_identitas'   => 'nullable',
+            'file_identitas'   => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'alamat'           => 'sometimes|string',
-            'pictures'         => 'nullable',
+            'pictures'         => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'jabatan'          => 'sometimes|in:Administrator,Pengelola,Pelanggan,Staf',
-            'logo'             => 'nullable',
+            'logo'             => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'paket_id'         => 'sometimes|exists:tb_paket_langganan,id',
             'nama_pengelola'   => 'sometimes|string|max:100',
             'email_pengelola'  => 'sometimes|email|max:50',
@@ -319,30 +329,36 @@ class UserController extends Controller
 
         // Tangani upload file identitas
         if ($request->hasFile('file_identitas')) {
-            // Hapus file lama jika ada
-            if ($user->file_identitas && Storage::disk('local')->exists($user->file_identitas)) {
-                Storage::disk('local')->delete($user->file_identitas);
+            try {
+                // Hapus file lama jika ada
+                if ($user->file_identitas && Storage::disk('local')->exists($user->file_identitas)) {
+                    Storage::disk('local')->delete($user->file_identitas);
+                }
+                $file = $request->file('file_identitas');
+                $fileName = time() . '_identitas.' . $file->getClientOriginalExtension();
+                $path = 'private-file/identitas/' . $fileName;
+                Storage::disk('local')->put($path, file_get_contents($file));
+                $updateData['file_identitas'] = $path;
+            } catch (\Exception $e) {
+                return response()->json(['message' => 'Gagal upload file identitas: ' . $e->getMessage()], 500);
             }
-
-            $file = $request->file('file_identitas');
-            $fileName = time() . '_identitas.' . $file->getClientOriginalExtension();
-            $path = 'private-file/identitas/' . $fileName;
-            Storage::disk('local')->put($path, file_get_contents($file));
-            $updateData['file_identitas'] = $path;
         }
 
         // Tangani upload foto pengguna
         if ($request->hasFile('pictures')) {
-            // Hapus file lama jika ada
-            if ($user->pictures && Storage::disk('local')->exists($user->pictures)) {
-                Storage::disk('local')->delete($user->pictures);
+            try {
+                // Hapus file lama jika ada
+                if ($user->pictures && Storage::disk('local')->exists($user->pictures)) {
+                    Storage::disk('local')->delete($user->pictures);
+                }
+                $file = $request->file('pictures');
+                $fileName = time() . '_foto.' . $file->getClientOriginalExtension();
+                $path = 'private-file/pictures/' . $fileName;
+                Storage::disk('local')->put($path, file_get_contents($file));
+                $updateData['pictures'] = $path;
+            } catch (\Exception $e) {
+                return response()->json(['message' => 'Gagal upload foto profil: ' . $e->getMessage()], 500);
             }
-
-            $file = $request->file('pictures');
-            $fileName = time() . '_foto.' . $file->getClientOriginalExtension();
-            $path = 'private-file/pictures/' . $fileName;
-            Storage::disk('local')->put($path, file_get_contents($file));
-            $updateData['pictures'] = $path;
         }
 
         // Perbarui data pengguna
@@ -358,22 +374,52 @@ class UserController extends Controller
                     'email'          => $request->email_pengelola ?? $pengelola->email,
                     'telpon'         => $request->telpon_pengelola ?? $pengelola->telpon,
                     'alamat'         => $request->alamat_pengelola ?? $pengelola->alamat,
-                    'logo'           => $request->logo ?? $pengelola->logo,
+                    // 'logo'        => $request->logo ?? $pengelola->logo, // PATCH: jangan update logo di sini
                     'deskripsi'      => $request->deskripsi_pengelola ?? $pengelola->deskripsi,
                 ]);
 
-                // Tangani perubahan logo jika ada
+                // PATCH: Tangani perubahan logo, file_identitas, dan pictures hanya jika ada file baru
                 if ($request->hasFile('logo')) {
-                    // Hapus logo lama jika ada
-                    if ($pengelola->logo && Storage::disk('local')->exists($pengelola->logo)) {
-                        Storage::disk('local')->delete($pengelola->logo);
+                    try {
+                        if ($pengelola->logo && Storage::disk('local')->exists($pengelola->logo)) {
+                            Storage::disk('local')->delete($pengelola->logo);
+                        }
+                        $file = $request->file('logo');
+                        $fileName = time() . '_logo.' . $file->getClientOriginalExtension();
+                        $path = 'private-file/logo/' . $fileName;
+                        Storage::disk('local')->put($path, file_get_contents($file));
+                        $pengelola->update(['logo' => $path]);
+                    } catch (\Exception $e) {
+                        return response()->json(['message' => 'Gagal upload logo perusahaan: ' . $e->getMessage()], 500);
                     }
-
-                    $file = $request->file('logo');
-                    $fileName = time() . '_logo.' . $file->getClientOriginalExtension();
-                    $path = 'private-file/logo/' . $fileName;
-                    Storage::disk('local')->put($path, file_get_contents($file));
-                    $pengelola->update(['logo' => $path]);
+                }
+                if ($request->hasFile('file_identitas')) {
+                    try {
+                        if ($pengelola->file_identitas && Storage::disk('local')->exists($pengelola->file_identitas)) {
+                            Storage::disk('local')->delete($pengelola->file_identitas);
+                        }
+                        $file = $request->file('file_identitas');
+                        $fileName = time() . '_identitas.' . $file->getClientOriginalExtension();
+                        $path = 'private-file/identitas/' . $fileName;
+                        Storage::disk('local')->put($path, file_get_contents($file));
+                        $pengelola->update(['file_identitas' => $path]);
+                    } catch (\Exception $e) {
+                        return response()->json(['message' => 'Gagal upload file identitas pengelola: ' . $e->getMessage()], 500);
+                    }
+                }
+                if ($request->hasFile('pictures')) {
+                    try {
+                        if ($pengelola->pictures && Storage::disk('local')->exists($pengelola->pictures)) {
+                            Storage::disk('local')->delete($pengelola->pictures);
+                        }
+                        $file = $request->file('pictures');
+                        $fileName = time() . '_pictures.' . $file->getClientOriginalExtension();
+                        $path = 'private-file/pictures/' . $fileName;
+                        Storage::disk('local')->put($path, file_get_contents($file));
+                        $pengelola->update(['pictures' => $path]);
+                    } catch (\Exception $e) {
+                        return response()->json(['message' => 'Gagal upload foto profil pengelola: ' . $e->getMessage()], 500);
+                    }
                 }
             }
 
