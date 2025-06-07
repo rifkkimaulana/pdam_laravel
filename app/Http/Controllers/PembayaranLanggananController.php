@@ -66,6 +66,30 @@ class PembayaranLanggananController extends Controller
         return response()->json(['message' => 'Data pembayaran berhasil disimpan', 'data' => $pembayaran], 201);
     }
 
+    public function destroy($id)
+    {
+        try {
+            $pembayaran = PembayaranLangganan::findOrFail($id);
+
+            // Hapus file bukti bayar jika ada
+            if ($pembayaran->bukti_bayar) {
+                $filePath = storage_path('app/private-file/' . $pembayaran->bukti_bayar);
+                if (file_exists($filePath)) {
+                    @unlink($filePath);
+                }
+            }
+
+            $pembayaran->delete();
+
+            return response()->json(['message' => 'Data pembayaran berhasil dihapus']);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Gagal menghapus pembayaran',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     // // Tampilkan pembayaran berdasarkan ID
     // public function show($id)
     // {
@@ -105,18 +129,5 @@ class PembayaranLanggananController extends Controller
     //     return response()->json($pembayaran);
     // }
 
-    // // Hapus pembayaran
-    // public function destroy($id)
-    // {
-    //     $pembayaran = PembayaranLangganan::findOrFail($id);
 
-    //     // Hapus file bukti bayar jika ada
-    //     if ($pembayaran->bukti_bayar) {
-    //         Storage::delete($pembayaran->bukti_bayar);
-    //     }
-
-    //     $pembayaran->delete();
-
-    //     return response()->json(['message' => 'Data pembayaran berhasil dihapus']);
-    // }
 }
