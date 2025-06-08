@@ -26,24 +26,16 @@ class UserController extends Controller
                 $row['user'] = $user->toArray();
                 $row['users'] = User::latest()->get()->toArray();
                 break;
-
             case 'Pengelola':
                 $row['user'] = $user->toArray();
-
                 $userPengelola = $user->pengelola;
-
                 $row['pengelola'] = $userPengelola ? $userPengelola->toArray() : [];
-
                 $row['paket'] = $userPengelola && $userPengelola->paket_id ?
                     PaketLangganan::find($userPengelola->paket_id)->toArray() : [];
-
                 $langganan = $userPengelola ?
                     Langganan::where('pengelola_id', $userPengelola->id)->first() : null;
-
                 $row['langganan'] = $langganan ? $langganan->toArray() : null;
                 break;
-
-
             case 'Pelanggan':
                 $row['user'] = $user->toArray();
                 $row['pelanggan'] = $user->pelanggan ? $user->pelanggan->toArray() : [];
@@ -54,7 +46,6 @@ class UserController extends Controller
                 $paket = PaketPengguna::find($user->pelanggan->paket_id);
                 $row['paket'] = $paket ? $paket->toArray() : [];
                 break;
-
             case 'Staf':
                 $row['user'] = $user->toArray();
                 $row['staf'] = $user->staf ? $user->staf->toArray() : [];
@@ -69,11 +60,35 @@ class UserController extends Controller
         return $row;
     }
 
+    private function getValidationRules($isUpdate = false, $id = null)
+    {
+        $rules = [
+            'paket_id'         => 'sometimes|exists:tb_paket_langganan,id',
+            'nama_lengkap'     => $isUpdate ? 'sometimes|string|max:50' : 'required|string|max:50',
+            'username'         => $isUpdate ? 'sometimes|string|max:50|unique:tb_user,username,' . $id : 'required|string|max:50|unique:tb_user,username',
+            'password'         => $isUpdate ? 'sometimes|nullable|string|min:6' : 'required|string|min:6',
+            'email'            => $isUpdate ? 'sometimes|email|max:50|unique:tb_user,email,' . $id : 'required|email|max:50|unique:tb_user,email',
+            'telpon'           => $isUpdate ? 'sometimes|string|max:15' : 'required|string|max:15',
+            'jenis_identitas'  => $isUpdate ? 'sometimes|in:KTP,SIM,PASPOR,ID Lainnya' : 'required|in:KTP,SIM,PASPOR,ID Lainnya',
+            'nomor_identitas'  => $isUpdate ? 'sometimes|string|max:20' : 'required|string|max:20',
+            'file_identitas'   => $isUpdate ? 'nullable|image|mimes:jpg,jpeg,png|max:51200|unique:tb_user,file_identitas,' . $id : 'nullable|image|mimes:jpg,jpeg,png|max:51200|unique:tb_user,file_identitas',
+            'alamat'           => $isUpdate ? 'sometimes|string' : 'required|string',
+            'pictures'         => $isUpdate ? 'nullable|image|mimes:jpg,jpeg,png|max:51200|unique:tb_user,pictures,' . $id : 'nullable|image|mimes:jpg,jpeg,png|max:51200|unique:tb_user,pictures',
+            'logo'             => $isUpdate ? 'nullable|image|mimes:jpg,jpeg,png|max:51200|unique:tb_user,logo,' . $id : 'nullable|image|mimes:jpg,jpeg,png|max:51200|unique:tb_user,logo',
+            'jabatan'          => $isUpdate ? 'sometimes|in:Administrator,Pengelola,Pelanggan,Staf' : 'required|in:Administrator,Pengelola,Pelanggan,Staf',
+            'nama_pengelola'   => 'sometimes|string|max:100',
+            'email_pengelola'  => 'sometimes|email|max:50',
+            'telpon_pengelola' => 'sometimes|string|max:15',
+            'alamat_pengelola' => 'sometimes|string',
+            'deskripsi_pengelola' => 'sometimes|string',
+        ];
+        return $rules;
+    }
+
     public function index(Request $request)
     {
         $page = $request->input('page', 1);
         $limit = $request->input('limit', 10);
-
         $search = $request->input('search');
         $status = $request->input('status');
 
@@ -87,10 +102,9 @@ class UserController extends Controller
             $query->where('nama_lengkap', 'like', '%' . $search . '%');
         }
 
-        // Jika filter status aktif, ambil hanya Pengelola, lalu filter status di PHP
         if ($status) {
             $query->where('jabatan', 'Pengelola');
-            $users = $query->get(); // Ambil semua dulu, filter manual
+            $users = $query->get();
             $filtered = [];
             foreach ($users as $user) {
                 $row = $this->getUserData($user);
@@ -98,11 +112,9 @@ class UserController extends Controller
                     $filtered[] = $row;
                 }
             }
-            // Paginate manual
             $total = count($filtered);
             $offset = ($page - 1) * $limit;
             $result = array_slice($filtered, $offset, $limit);
-
             return response()->json([
                 'data' => $result,
                 'total' => $total,
@@ -129,85 +141,23 @@ class UserController extends Controller
         }
     }
 
-    // public function show($id)
-    // {
-    //     $user = User::findOrFail($id);
-    //     $row = $this->getUserData($user);
-
-    //     return response()->json($row);
-    // }
-
     public function store(Request $request)
     {
-        // Validasi input data
-        $validated = $request->validate([
-            'paket_id'         => 'sometimes|exists:tb_paket_langganan,id',
-            'nama_lengkap'     => 'required|string|max:50',
-            'username'         => 'required|string|max:50|unique:tb_user,username',
-            'password'         => 'required|string|min:6',
-            'email'            => 'required|email|max:50|unique:tb_user,email',
-            'telpon'           => 'required|string|max:15',
-            'jenis_identitas'  => 'required|in:KTP,SIM,PASPOR,ID Lainnya',
-            'nomor_identitas'  => 'required|string|max:20',
-            'file_identitas'   => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-            'alamat'           => 'required|string',
-            'pictures'         => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-            'logo'             => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-            'jabatan'          => 'required|in:Administrator,Pengelola,Pelanggan,Staf'
-        ]);
-
-        // Handle file upload for file_identitas
-        if ($request->hasFile('file_identitas')) {
-            $file = $request->file('file_identitas');
-            $filename = uniqid('identitas_') . '.' . $file->getClientOriginalExtension();
-            $file->storeAs('private-file/identitas', $filename, 'local');
-            $validated['file_identitas'] = 'identitas/' . $filename;
-        } else if ($request->filled('file_identitas')) {
-            $validated['file_identitas'] = $request->input('file_identitas');
-        } else {
-            $validated['file_identitas'] = '';
-        }
-
-        // Handle file upload for pictures
-        if ($request->hasFile('pictures')) {
-            $file = $request->file('pictures');
-            $filename = uniqid('foto_') . '.' . $file->getClientOriginalExtension();
-            $file->storeAs('private-file/pictures', $filename, 'local');
-            $validated['pictures'] = 'pictures/' . $filename;
-        } else if ($request->filled('pictures')) {
-            $validated['pictures'] = $request->input('pictures');
-        } else {
-            $validated['pictures'] = '';
-        }
-
-        // Handle file upload for logo
-        if ($request->hasFile('logo')) {
-            $file = $request->file('logo');
-            $filename = uniqid('logo_') . '.' . $file->getClientOriginalExtension();
-            $file->storeAs('private-file/logo', $filename, 'local');
-            $validated['logo'] = 'logo/' . $filename;
-        } else if ($request->filled('logo')) {
-            $validated['logo'] = $request->input('logo');
-        } else {
-            $validated['logo'] = '';
-        }
-
-        // Handle password hash
+        $validated = $request->validate($this->getValidationRules(false));
+        $fileIdentitasPath = $this->handleFileUpload($request, 'file_identitas', 'private-file/identitas');
+        $validated['file_identitas'] = $fileIdentitasPath ?? '';
+        $picturesPath = $this->handleFileUpload($request, 'pictures', 'private-file/pictures');
+        $validated['pictures'] = $picturesPath ?? '';
+        $logoPath = $this->handleFileUpload($request, 'logo', 'private-file/logo');
+        $validated['logo'] = $logoPath ?? '';
         $validated['password'] = Hash::make($validated['password']);
-
-        // Create new user
         $user = User::create($validated);
-
-        // Prepare response array to include all the added data
         $responseData = [
             'user' => $user,
             'pengelola' => null,
             'langganan' => null
         ];
-
-        // Check if the user is a "Pengelola" and create the Pengelola
         if ($validated['jabatan'] === 'Pengelola') {
-            // Create pengelola
             $pengelola = Pengelola::create([
                 'user_id'        => $user->id,
                 'paket_id'       => $request->paket_id,
@@ -218,33 +168,21 @@ class UserController extends Controller
                 'logo'           => $request->logo_pengelola,
                 'deskripsi'      => $request->deskripsi_pengelola
             ]);
-
-            // Handle logo file upload for pengelola
-            if ($request->hasFile('logo_pengelola')) {
-                $file = $request->file('logo_pengelola');
-                $fileName = time() . '_logo.' . $file->getClientOriginalExtension();
-                $path = 'private-file/logo/' . $fileName;
-                Storage::disk('local')->put($path, file_get_contents($file));
-                // Update logo path for pengelola
-                $pengelola->update(['logo' => $path]);
+            $logoPengelolaPath = $this->handleFileUpload($request, 'logo_pengelola', 'private-file/logo');
+            if ($logoPengelolaPath) {
+                $pengelola->update(['logo' => $logoPengelolaPath]);
             }
-
-            // Create langganan entry for the pengelola (initial status "Tidak Aktif")
             $langganan = Langganan::create([
                 'pengelola_id' => $pengelola->id,
                 'status'       => 'Tidak Aktif',
                 'paket_id'     => $request->paket_id,
-                'user_id'      => 1, // Assuming user_id 1 is the admin or system user
+                'user_id'      => 1,
                 'mulai_langganan' => null,
                 'akhir_langganan' => null
             ]);
-
-            // Add the pengelola and langganan to the response
             $responseData['pengelola'] = $pengelola;
             $responseData['langganan'] = $langganan;
         }
-
-        // Handle other jabatan (Pelanggan or Staf)
         switch ($validated['jabatan']) {
             case 'Pelanggan':
                 $pelanggan = Pelanggan::create([
@@ -257,7 +195,6 @@ class UserController extends Controller
                 ]);
                 $responseData['pelanggan'] = $pelanggan;
                 break;
-
             case 'Staf':
                 $staf = Staf::create([
                     'user_id'      => $user->id,
@@ -267,257 +204,108 @@ class UserController extends Controller
                 $responseData['staf'] = $staf;
                 break;
         }
-
         return response()->json([
             'message' => 'User berhasil ditambahkan',
             'data' => $responseData
         ], 201);
     }
 
+    private function handleFileUpload($request, $field, $folder, $oldFile = null)
+    {
+        if ($request->hasFile($field)) {
+            try {
+                if ($oldFile && Storage::disk('local')->exists($oldFile)) {
+                    Storage::disk('local')->delete($oldFile);
+                }
+                $file = $request->file($field);
+                $fileName = time() . '_' . $field . '.' . $file->getClientOriginalExtension();
+                $path = $folder . '/' . $fileName;
+                Storage::disk('local')->put($path, file_get_contents($file));
+                return $path;
+            } catch (\Exception $e) {
+                throw $e;
+            }
+        }
+        return null;
+    }
 
     public function update(Request $request, $id)
     {
-        // Cari pengguna berdasarkan ID
         $user = User::find($id);
-        if (!$user) {
-            return response()->json(['message' => 'User tidak ditemukan'], 404);
-        }
 
-        // Validasi input data
-        $validated = $request->validate([
-            'nama_lengkap'     => 'sometimes|string|max:50',
-            'username'         => 'sometimes|string|max:50|unique:tb_user,username,' . $id,
-            'email'            => 'sometimes|email|max:50|unique:tb_user,email,' . $id,
-            'password'         => 'sometimes|nullable|string|min:6',
-            'telpon'           => 'sometimes|string|max:15',
-            'jenis_identitas'  => 'sometimes|in:KTP,SIM,PASPOR,ID Lainnya',
-            'nomor_identitas'  => 'sometimes|string|max:20',
-            'file_identitas'   => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-            'alamat'           => 'sometimes|string',
-            'pictures'         => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-            'jabatan'          => 'sometimes|in:Administrator,Pengelola,Pelanggan,Staf',
-            'logo'             => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-            'paket_id'         => 'sometimes|exists:tb_paket_langganan,id',
-            'nama_pengelola'   => 'sometimes|string|max:100',
-            'email_pengelola'  => 'sometimes|email|max:50',
-            'telpon_pengelola' => 'sometimes|string|max:15',
-            'alamat_pengelola' => 'sometimes|string',
-            'deskripsi_pengelola' => 'sometimes|string',
-        ]);
-
-        // Perbarui data pengguna jika ada perubahan
-        $updateData = [];
-        foreach ($validated as $key => $val) {
-            if ($val !== null && $val !== "") {
-                $updateData[$key] = $val;
-            }
-        }
-
-        // Cek jika ada permintaan perubahan password dan kolom password_lama
-        if ($request->filled('password') && $request->filled('password_lama')) {
-            // Verifikasi password lama
-            if (!Hash::check($request->input('password_lama'), $user->password)) {
-                return response()->json(['message' => 'Password lama salah'], 400);
-            }
-        }
-
-        // Jika ada perubahan password, lakukan hash
-        if (isset($updateData['password'])) {
-            $updateData['password'] = Hash::make($updateData['password']);
-        }
-
-        // Tangani upload file identitas
-        if ($request->hasFile('file_identitas')) {
-            try {
-                // Hapus file lama jika ada
-                if ($user->file_identitas && Storage::disk('local')->exists($user->file_identitas)) {
-                    Storage::disk('local')->delete($user->file_identitas);
-                }
-                $file = $request->file('file_identitas');
-                $fileName = time() . '_identitas.' . $file->getClientOriginalExtension();
-                $path = 'private-file/identitas/' . $fileName;
-                Storage::disk('local')->put($path, file_get_contents($file));
-                $updateData['file_identitas'] = $path;
-            } catch (\Exception $e) {
-                return response()->json(['message' => 'Gagal upload file identitas: ' . $e->getMessage()], 500);
-            }
-        }
-
-        // Tangani upload foto pengguna
-        if ($request->hasFile('pictures')) {
-            try {
-                // Hapus file lama jika ada
-                if ($user->pictures && Storage::disk('local')->exists($user->pictures)) {
-                    Storage::disk('local')->delete($user->pictures);
-                }
-                $file = $request->file('pictures');
-                $fileName = time() . '_foto.' . $file->getClientOriginalExtension();
-                $path = 'private-file/pictures/' . $fileName;
-                Storage::disk('local')->put($path, file_get_contents($file));
-                $updateData['pictures'] = $path;
-            } catch (\Exception $e) {
-                return response()->json(['message' => 'Gagal upload foto profil: ' . $e->getMessage()], 500);
-            }
-        }
-
-        // Perbarui data pengguna
-        $user->update($updateData);
-
-        // Perbarui data pengelola jika jabatan adalah "Pengelola"
+        $validated = $request->validate($this->getValidationRules(true, $id));
+        // Update ke tabel user
+        $user->update($validated);
+        $pengelola = null;
         if ($user->jabatan === 'Pengelola') {
-            $pengelola = Pengelola::where('user_id', $user->id)->first();
+            $pengelola = Pengelola::where('user_id', $id)->first();
             if ($pengelola) {
-                $pengelola->update([
-                    'paket_id'       => $request->paket_id ?? $pengelola->paket_id,
-                    'nama_pengelola' => $request->nama_pengelola ?? $pengelola->nama_pengelola,
-                    'email'          => $request->email_pengelola ?? $pengelola->email,
-                    'telpon'         => $request->telpon_pengelola ?? $pengelola->telpon,
-                    'alamat'         => $request->alamat_pengelola ?? $pengelola->alamat,
-                    'deskripsi'      => $request->deskripsi_pengelola ?? $pengelola->deskripsi,
+                if ($request->hasFile('logo')) {
+                    $file = $request->file('logo');
+                    $logoName = time() . '_' . $file->getClientOriginalExtension();
+                    $file->storeAs('private-file/logo', $logoName);
+                }
+
+                $pengelolaUpdate = array_filter([
+                    'paket_id'        => $validated['paket_id'] ?? null,
+                    'nama_pengelola'  => $validated['nama_pengelola'] ?? null,
+                    'email'           => $validated['email_pengelola'] ?? null,
+                    'telpon'          => $validated['telpon_pengelola'] ?? null,
+                    'alamat'          => $validated['alamat_pengelola'] ?? null,
+                    'deskripsi'       => $validated['deskripsi_pengelola'] ?? null,
+                    'logo'            => $logoName ?? null
                 ]);
 
-                // Tangani perubahan logo, file_identitas, dan pictures hanya jika ada file baru
-                if ($request->hasFile('logo')) {
-                    try {
-                        if ($pengelola->logo && Storage::disk('local')->exists($pengelola->logo)) {
-                            Storage::disk('local')->delete($pengelola->logo);
-                        }
-                        $file = $request->file('logo');
-                        $fileName = time() . '_logo.' . $file->getClientOriginalExtension();
-                        $path = 'private-file/logo/' . $fileName;
-                        Storage::disk('local')->put($path, file_get_contents($file));
-                        $pengelola->update(['logo' => $path]);
-                    } catch (\Exception $e) {
-                        return response()->json(['message' => 'Gagal upload logo perusahaan: ' . $e->getMessage()], 500);
-                    }
-                }
-
-                // Tangani perubahan file identitas dan foto profil pengelola
-                if ($request->hasFile('file_identitas')) {
-                    try {
-                        if ($pengelola->file_identitas && Storage::disk('local')->exists($pengelola->file_identitas)) {
-                            Storage::disk('local')->delete($pengelola->file_identitas);
-                        }
-                        $file = $request->file('file_identitas');
-                        $fileName = time() . '_identitas.' . $file->getClientOriginalExtension();
-                        $path = 'private-file/identitas/' . $fileName;
-                        Storage::disk('local')->put($path, file_get_contents($file));
-                        $pengelola->update(['file_identitas' => $path]);
-                    } catch (\Exception $e) {
-                        return response()->json(['message' => 'Gagal upload file identitas pengelola: ' . $e->getMessage()], 500);
-                    }
-                }
-
-                if ($request->hasFile('pictures')) {
-                    try {
-                        if ($pengelola->pictures && Storage::disk('local')->exists($pengelola->pictures)) {
-                            Storage::disk('local')->delete($pengelola->pictures);
-                        }
-                        $file = $request->file('pictures');
-                        $fileName = time() . '_pictures.' . $file->getClientOriginalExtension();
-                        $path = 'private-file/pictures/' . $fileName;
-                        Storage::disk('local')->put($path, file_get_contents($file));
-                        $pengelola->update(['pictures' => $path]);
-                    } catch (\Exception $e) {
-                        return response()->json(['message' => 'Gagal upload foto profil pengelola: ' . $e->getMessage()], 500);
-                    }
-                }
-            }
-
-            // Perbarui data langganan untuk pengelola
-            $langganan = Langganan::where('pengelola_id', $pengelola->id)->first();
-            if ($langganan) {
-                $langganan->update([
-                    'paket_id'     => $request->paket_id ?? $langganan->paket_id,
-                    'status'       => 'Tidak Aktif',
-                    'mulai_langganan' => $request->mulai_langganan ?? $langganan->mulai_langganan,
-                    'akhir_langganan' => $request->akhir_langganan ?? $langganan->akhir_langganan,
+                $pengelola->update($pengelolaUpdate);
+                return response()->json([
+                    'message' => ' Berhasil diperbarui',
+                    'user' => $user,
+                    'pengelola' => $pengelola
                 ]);
             }
         }
-
-        // Response setelah berhasil mengupdate
-        return response()->json([
-            'message' => 'User berhasil diperbarui',
-            'user' => $user,
-            'pengelola' => $pengelola ?? null,
-            'langganan' => $langganan ?? null,
-        ]);
     }
-
-
 
     public function destroy($id)
     {
         $user = User::find($id);
-
         if (!$user) {
             return response()->json(['message' => 'User not found'], 404);
         }
-
         switch ($user->jabatan) {
             case 'Pengelola':
                 $pengelola = Pengelola::where('user_id', $id)->first();
-
                 if ($pengelola) {
-                    // Mencari langganan pengelola
                     $langganan = Langganan::where('pengelola_id', $pengelola->id)->first();
-
                     if ($langganan) {
-                        // Mengecek apakah ada pembayaran untuk langganan pengelola
                         $pembayaran_langganan = PembayaranLangganan::where('langganan_id', $langganan->id)->first();
                         if ($pembayaran_langganan) {
-                            // Jika ada pembayaran, kembalikan peringatan
                             return response()->json(['message' => 'Pengelola ini memiliki riwayat pembayaran. Tidak dapat menghapus user.'], 400);
                         }
-
-                        // Menghapus langganan jika tidak ada riwayat pembayaran
                         Langganan::where('pengelola_id', $pengelola->id)->delete();
                     }
-
-                    // Menghapus data Pengelola setelah pengecekan riwayat pembayaran
                     Pengelola::where('user_id', $id)->delete();
                 }
-
-                // Menghapus gambar yang terkait dengan Pengelola (pictures, file_identitas, logo)
                 if ($pengelola->logo && Storage::disk('local')->exists($pengelola->logo)) {
-                    Storage::disk('local')->delete($pengelola->logo); // Hapus file logo
+                    Storage::disk('local')->delete($pengelola->logo);
                 }
-
                 if ($pengelola->user->pictures && Storage::disk('local')->exists($pengelola->user->pictures)) {
-                    Storage::disk('local')->delete($pengelola->user->pictures); // Hapus file pictures
+                    Storage::disk('local')->delete($pengelola->user->pictures);
                 }
-
                 if ($pengelola->user->file_identitas && Storage::disk('local')->exists($pengelola->user->file_identitas)) {
-                    Storage::disk('local')->delete($pengelola->user->file_identitas); // Hapus file identitas
+                    Storage::disk('local')->delete($pengelola->user->file_identitas);
                 }
-
-                // Menghapus user (meskipun pengelola tidak ditemukan)
                 User::where('id', $id)->delete();
-
                 return response()->json(['message' => 'User dan data terkait berhasil dihapus!'], 200);
                 break;
-
-
             case 'Pelanggan':
-
-                //Pelanggan::where('user_id', $id)->delete();
-
-                // Menghapus tagihan pelanggan jika ada
-                // TagihanPelanggan::where('pelanggan_id', $user->pelanggan->id)->delete();
                 break;
-
             case 'Staf':
-                // Menghapus data Staf terkait user
-                // Staf::where('user_id', $id)->delete();
                 break;
-
             default:
                 return response()->json(['message' => 'Unknown jabatan'], 400);
         }
-
         $user->delete();
-
         return response()->json(['message' => 'User dan data terkait berhasil dihapus!'], 200);
     }
 }
