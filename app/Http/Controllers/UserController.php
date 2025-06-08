@@ -320,7 +320,6 @@ class UserController extends Controller
                 return response()->json(['message' => 'Password lama salah'], 400);
             }
         }
-        // Jika password_lama tidak ada, lanjutkan proses update seperti biasa
 
         // Jika ada perubahan password, lakukan hash
         if (isset($updateData['password'])) {
@@ -374,11 +373,10 @@ class UserController extends Controller
                     'email'          => $request->email_pengelola ?? $pengelola->email,
                     'telpon'         => $request->telpon_pengelola ?? $pengelola->telpon,
                     'alamat'         => $request->alamat_pengelola ?? $pengelola->alamat,
-                    // 'logo'        => $request->logo ?? $pengelola->logo, // PATCH: jangan update logo di sini
                     'deskripsi'      => $request->deskripsi_pengelola ?? $pengelola->deskripsi,
                 ]);
 
-                // PATCH: Tangani perubahan logo, file_identitas, dan pictures hanya jika ada file baru
+                // Tangani perubahan logo, file_identitas, dan pictures hanya jika ada file baru
                 if ($request->hasFile('logo')) {
                     try {
                         if ($pengelola->logo && Storage::disk('local')->exists($pengelola->logo)) {
@@ -393,6 +391,8 @@ class UserController extends Controller
                         return response()->json(['message' => 'Gagal upload logo perusahaan: ' . $e->getMessage()], 500);
                     }
                 }
+
+                // Tangani perubahan file identitas dan foto profil pengelola
                 if ($request->hasFile('file_identitas')) {
                     try {
                         if ($pengelola->file_identitas && Storage::disk('local')->exists($pengelola->file_identitas)) {
@@ -407,6 +407,7 @@ class UserController extends Controller
                         return response()->json(['message' => 'Gagal upload file identitas pengelola: ' . $e->getMessage()], 500);
                     }
                 }
+
                 if ($request->hasFile('pictures')) {
                     try {
                         if ($pengelola->pictures && Storage::disk('local')->exists($pengelola->pictures)) {
@@ -440,9 +441,10 @@ class UserController extends Controller
             'message' => 'User berhasil diperbarui',
             'user' => $user,
             'pengelola' => $pengelola ?? null,
-            'langganan' => $langganan ?? null
+            'langganan' => $langganan ?? null,
         ]);
     }
+
 
 
     public function destroy($id)
